@@ -1,0 +1,4 @@
+ollama
+requests
+serverchan-sdk
+croniter

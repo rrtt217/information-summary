@@ -1,8 +1,12 @@
 import requests
 import json
+import logging
 from datetime import datetime, timedelta, timezone
 import time
 from ollama import Client
+
+# 设置日志
+logger = logging.getLogger(__name__)
 
 def get_recent_commit_messages(owner, repo, days=1, token=None):
     """
@@ -39,7 +43,7 @@ def get_recent_commit_messages(owner, repo, days=1, token=None):
                     reset_time = int(response.headers['X-RateLimit-Reset'])
                     wait_time = reset_time - time.time()
                     if wait_time > 0:
-                        print(f"API限制达到，等待 {wait_time:.0f} 秒")
+                        logger.info(f"API限制达到，等待 {wait_time:.0f} 秒")
                         time.sleep(wait_time + 1)
                         continue
             
@@ -60,10 +64,10 @@ def get_recent_commit_messages(owner, repo, days=1, token=None):
             time.sleep(0.5)  # 避免请求过快
             
         except requests.exceptions.RequestException as e:
-            print(f"第 {page} 页请求失败 (URL: {url}): {e}")
+            logger.error(f"第 {page} 页请求失败 (URL: {url}): {e}")
             break
         except Exception as e:
-            print(f"第 {page} 页处理出现意外错误: {e}")
+            logger.error(f"第 {page} 页处理出现意外错误: {e}")
             break
     
     # 提取commit message
@@ -92,15 +96,15 @@ def get_diff_between_commits(owner, repo, base_sha, head_sha, token=None, raw=Tr
     try:
         response = requests.get(url, headers=headers, timeout=timeout)
         if response.status_code == 404:
-            print(f"未找到比较对象: {base_sha}...{head_sha}")
+            logger.warning(f"未找到比较对象: {base_sha}...{head_sha}")
             return None
         response.raise_for_status()
         return response.text
     except requests.exceptions.RequestException as e:
-        print(f"获取 diff 失败 (URL: {url}): {e}")
+        logger.error(f"获取 diff 失败 (URL: {url}): {e}")
         return None
     except Exception as e:
-        print(f"获取 diff 时出现意外错误: {e}")
+        logger.error(f"获取 diff 时出现意外错误: {e}")
         return None
 
 def get_readme(owner, repo, token=None):
@@ -133,7 +137,7 @@ def get_readme(owner, repo, token=None):
                 reset_time = int(response.headers['X-RateLimit-Reset'])
                 wait_time = reset_time - time.time()
                 if wait_time > 0:
-                    print(f"API限制达到，等待 {wait_time:.0f} 秒")
+                    logger.info(f"API限制达到，等待 {wait_time:.0f} 秒")
                     time.sleep(wait_time + 1)
                     # 重试一次
                     response = requests.get(url, headers=headers)
@@ -145,11 +149,52 @@ def get_readme(owner, repo, token=None):
         content = base64.b64decode(data['content']).decode('utf-8')
         return content
     except requests.exceptions.RequestException as e:
-        print(f"获取README失败: {e}")
+        logger.error(f"获取README失败: {e}")
         return None
     except Exception as e:
-        print(f"获取README时出现意外错误: {e}")
+        logger.error(f"获取README时出现意外错误: {e}")
         return None
+
+def generate_readme_summary(owner, repo, token=None, model='llama2'):
+    """
+    从README生成中文概述
+    
+    参数:
+    - owner: 仓库所有者
+    - repo: 仓库名
+    - token: GitHub token (可选)
+    - model: Ollama模型名称 (默认: 'llama2')
+    
+    返回:
+    - README中文概述 (str) 或 None
+    """
+    logger.info(f"正在获取 {owner}/{repo} 的README内容...")
+    
+    # 获取README内容
+    readme_content = get_readme(owner, repo, token)
+    if not readme_content:
+        logger.warning("无法获取README内容")
+        return None
+    
+    logger.info("成功获取README内容，正在生成中文概述...")
+    
+    # 使用Ollama生成中文概述
+    prompt = f"""
+        请对以下GitHub仓库的README内容进行中文概述：
+
+        README内容：
+        {readme_content[:10000]}  # 限制内容长度
+
+        要求：
+        1. 用中文进行概述
+        2. 简要介绍仓库的主要功能和用途
+        3. 突出仓库的核心特点
+        4. 保持简洁明了，不超过200字
+
+        请提供中文概述："""
+    
+    summary = call_ollama(prompt, model)
+    return summary
 
 def call_ollama(prompt, model='llama2'):
     """
@@ -165,6 +210,7 @@ def call_ollama(prompt, model='llama2'):
         response = client.generate(model=model, prompt=prompt, stream=False)
         return response.get('response', "")
     except Exception as e:
+        logger.error(f"Ollama调用失败: {e}")
         return f"Ollama调用失败: {e}"
 
 def summarize_commits_with_ollama(owner, repo, option=1, days=1, token=None, model='llama2'):
@@ -182,7 +228,7 @@ def summarize_commits_with_ollama(owner, repo, option=1, days=1, token=None, mod
     返回:
     - 概括内容 (str)
     """
-    print(f"开始获取 {owner}/{repo} 最近 {days} 天的commit...")
+    logger.info(f"开始获取 {owner}/{repo} 最近 {days} 天的commit...")
     
     # 获取commit消息
     try:
@@ -193,18 +239,18 @@ def summarize_commits_with_ollama(owner, repo, option=1, days=1, token=None, mod
     if not commit_messages:
         return f"在 {days} 天内没有找到 {owner}/{repo} 的commit"
     
-    print(f"找到 {len(commit_messages)} 个commit")
+    logger.info(f"找到 {len(commit_messages)} 个commit")
     
     if option == 1:
         # 选项1：直接翻译概括commit message
-        return summarize_direct_option(commit_messages, owner, repo, model)
+        return summarize_direct_option(commit_messages, owner, repo, model, token)
     elif option == 2:
         # 选项2：根据相邻commit的diff生成message
-        return summarize_with_diff_option(commit_messages, owner, repo, token, model)
+        return summarize_with_diff_option(commit_messages, owner, repo, days, token, model)
     else:
         return "无效的选项，请选择1或2"
 
-def summarize_direct_option(commit_messages, owner, repo, model='llama2'):
+def summarize_direct_option(commit_messages, owner, repo, model='llama2', token=None):
     """
     选项1：直接翻译概括commit message
     
@@ -213,14 +259,22 @@ def summarize_direct_option(commit_messages, owner, repo, model='llama2'):
     - owner: 仓库所有者
     - repo: 仓库名
     - model: Ollama模型名称 (默认: 'llama2')
+    - token: GitHub token (可选)
     """
-    print("使用选项1：直接翻译概括commit message")
+    logger.info("使用选项1：直接翻译概括commit message")
+    
+    # 获取README中文概述
+    readme_summary = generate_readme_summary(owner, repo, token, model)
+    if readme_summary:
+        logger.info("成功获取README中文概述")
     
     # 将所有commit消息合并成一个文本
     combined_messages = "\n".join([f"Commit {i+1}: {msg}" for i, msg in enumerate(commit_messages)])
     
     prompt = f"""
-        请对以下来自GitHub仓库 {owner}/{repo} 的commit消息进行概括总结：
+        GitHub仓库 {owner}/{repo} 的概述：
+        {readme_summary if readme_summary else '无README概述'}
+        根据上述信息，请对以下来自GitHub仓库 {owner}/{repo} 的commit消息进行概括总结：
 
         {combined_messages}
 
@@ -234,10 +288,9 @@ def summarize_direct_option(commit_messages, owner, repo, model='llama2'):
     
     print("调用Ollama进行概括...")
     summary = call_ollama(prompt, model)
-    
     return summary
 
-def summarize_with_diff_option(commit_messages, owner, repo, token, model='llama2'):
+def summarize_with_diff_option(commit_messages, owner, repo, days=1, token=None, model='llama2'):
     """
     选项2：根据相邻commit的diff生成message，然后与原来的commit message配对进行概括
     
@@ -250,6 +303,11 @@ def summarize_with_diff_option(commit_messages, owner, repo, token, model='llama
     """
     print("使用选项2：根据diff生成message并配对概括")
     
+    # 获取README中文概述
+    readme_summary = generate_readme_summary(owner, repo, token, model)
+    if readme_summary:
+        print("成功获取README中文概述")
+    
     # 为了简化，这里只处理前几个commit的diff
     if len(commit_messages) < 2:
         return "commit数量不足，无法进行diff分析"
@@ -257,7 +315,7 @@ def summarize_with_diff_option(commit_messages, owner, repo, token, model='llama
     print("获取commit的详细信息以进行diff分析...")
     
     # 获取完整的commit列表以获取SHA值
-    since_date = (datetime.now(tz=timezone(timedelta(hours=0))) - timedelta(days=1)).isoformat()
+    since_date = (datetime.now(tz=timezone(timedelta(hours=0))) - timedelta(days=days)).isoformat()
     url = f"https://api.github.com/repos/{owner}/{repo}/commits"
     params = {
         'since': since_date,
@@ -283,7 +341,7 @@ def summarize_with_diff_option(commit_messages, owner, repo, token, model='llama
         generated_message = ""
 
         for i in range(len(commits)-1):
-            # 获取前两个commit进行diff分析
+            # 获取相邻两个commit进行diff分析
             base_sha = commits[i+1]['sha']  # 较旧的commit
             head_sha = commits[i]['sha']  # 较新的commit
         
@@ -297,6 +355,10 @@ def summarize_with_diff_option(commit_messages, owner, repo, token, model='llama
             
             # 使用Ollama分析diff并生成message
             diff_prompt = f"""
+                以下是来自GitHub仓库 {owner}/{repo} 的两个相邻commit之间的diff，该仓库的概述如下：
+                
+                {readme_summary if readme_summary else '无README概述'}
+                
                 请分析以下Git diff并生成一个简洁的commit消息描述这个变更：
 
                 {diff_text[:65536]}  # 限制diff长度
@@ -307,9 +369,9 @@ def summarize_with_diff_option(commit_messages, owner, repo, token, model='llama
         
         original_message = commit_messages[0] if commit_messages else "无原始消息"
         
-            # 将生成的message与原始message配对，然后进行概括
+        # 将生成的message与原始message配对，然后进行概括
         pair_prompt = f"""
-            请对比以下两个commit消息并给出概括：
+            请整合以下两个commit消息并给出概括：
 
             原始commit消息:
             {original_message}
@@ -317,20 +379,13 @@ def summarize_with_diff_option(commit_messages, owner, repo, token, model='llama
             基于diff生成的commit消息:
             {generated_message}
 
-            请对这两个commit消息进行对比分析，并提供一个综合的概括总结：
+            请对这两个commit消息进行整合，并提供一个综合的概括总结：
 
             概括总结："""
         
         final_summary = call_ollama(pair_prompt, model)
         
-        return f"""基于diff分析的commit概括：
-
-        原始commit: {original_message}
-
-        基于diff生成的commit: {generated_message}
-
-        综合概括：
-                {final_summary}"""
+        return final_summary
                 
     except requests.exceptions.RequestException as e:
         return f"请求commit列表时出错: {e}"
