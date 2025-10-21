@@ -18,7 +18,7 @@ class GenericClient(ABC):
         """获取指定仓库的README内容"""
         pass
     @abstractmethod
-    async def get_commits_since(self, owner: str, repo: str, since: datetime, branch: str) -> Any:
+    async def get_commit_messages_since(self, owner: str, repo: str, since: datetime, branch: str) -> Any:
         """获取自指定时间以来的提交记录"""
         pass
     @abstractmethod

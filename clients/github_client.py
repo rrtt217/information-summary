@@ -56,9 +56,9 @@ class GitHubClient(GenericClient):
                 else:
                     raise Exception(f"获取 README 失败: {response.status}")
     
-    async def get_commits_since(self, owner: str, repo: str, since: datetime, branch: str = "main" ) -> List[Dict[str, Any]]:
+    async def get_commit_messages_since(self, owner: str, repo: str, since: datetime, branch: str = "main" ) -> str:
         """
-        获取自指定时间以来的提交记录
+        获取自指定时间以来的提交记录，提取关键信息
         
         Args:
             owner: 仓库所有者
@@ -67,7 +67,10 @@ class GitHubClient(GenericClient):
             since: 起始时间
         
         Returns:
-            提交记录列表
+            包含关键信息的提交记录字符串，每行一个提交， 信息包括：
+            - message (提交信息)
+            - author/committer (作者/提交者信息)
+            - sha (提交哈希)
         """
         url = f"{self.base_url}/repos/{owner}/{repo}/commits"
         params = {
@@ -78,7 +81,26 @@ class GitHubClient(GenericClient):
         async with aiohttp.ClientSession(headers=self.headers) as session:
             async with session.get(url, params=params) as response:
                 if response.status == 200:
-                    return await response.json()
+                    commits_data = await response.json()
+                    extracted_info = ""
+                    # 提取关键提交信息
+                    for commit in commits_data:
+                        commit_info = {
+                            "message": commit.get("commit", {}).get("message", ""),
+                            "sha": commit.get("sha", ""),
+                            "html_url": commit.get("html_url", "")
+                        }
+                        
+                        # 提取作者信息（优先使用author，如果没有则使用committer）
+                        author_info = commit.get("author") or commit.get("committer") or {}
+                        if author_info:
+                            commit_info["author"] = {
+                                "name": author_info.get("name"),
+                                "email": author_info.get("email"),
+                                "login": author_info.get("login")
+                        }
+                        extracted_info += f"Commit {commit_info['sha'][:7]} by {commit_info['author']['name']}: {commit_info['message']}\n"
+                    return extracted_info
                 elif response.status == 429:
                     reset_timestamp = response.headers.get("X-RateLimit-Reset")
                     reset_time = None
@@ -91,7 +113,7 @@ class GitHubClient(GenericClient):
                 else:
                     raise Exception(f"获取提交记录失败: {response.status}")
     
-    async def get_issues_since(self, owner: str, repo: str, since: datetime) -> List[Dict[str, Any]]:
+    async def get_issues_since(self, owner: str, repo: str, since: datetime) -> str:
         """
         获取自指定时间以来的问题记录
         
@@ -101,7 +123,13 @@ class GitHubClient(GenericClient):
             since: 起始时间（datetime, UTF+0）
         
         Returns:
-            问题记录列表
+            包含关键信息的问题记录字符串（每行一个问题），信息包括：
+            - title (问题标题)
+            - user (创建者信息)
+            - state (问题状态)
+            - number (问题编号)
+            - assignees (指派人信息)
+            - labels (标签信息)
         """
         url = f"{self.base_url}/repos/{owner}/{repo}/issues"
         params = {
@@ -112,7 +140,17 @@ class GitHubClient(GenericClient):
         async with aiohttp.ClientSession(headers=self.headers) as session:
             async with session.get(url, params=params) as response:
                 if response.status == 200:
-                    return await response.json()
+                    issue_data = await response.json()
+                    extracted_info = ""
+                    for issue in issue_data:
+                        # 过滤掉拉取请求，只保留问题
+                        if "pull_request" not in issue:
+                            if issue['labels']:
+                                labels = ",".join([str(label['name']) for label in issue['labels']])
+                            else:
+                                labels = None
+                            extracted_info += f"Issue #{issue['number']} by {issue['user']['login']}: {issue['title']} (State: {issue['state']}), {'(Labels: {labels})' if labels else ''})\n"
+                    return extracted_info
                 elif response.status == 429:
                     reset_timestamp = response.headers.get("X-RateLimit-Reset")
                     reset_time = None
