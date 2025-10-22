@@ -8,7 +8,6 @@ from .generic_client import GenericClient, RateLimitException
 
 class GitLabClient(GenericClient):
     """GitLab API 客户端"""
-    # 由于GitLab API限制，不能直接通过owner/repo访问项目，需要先获取Project ID
     def __init__(self, token: Optional[str] = None, base_url: str = "https://gitlab.com/api/v4"):
         """
         初始化 GitLab 客户端
@@ -24,38 +23,6 @@ class GitLabClient(GenericClient):
         }
         if self.token:
             self.headers["Authorization"] = f"Bearer {self.token}"
-    
-    async def _get_project_id(self, owner: str, repo: str) -> int:
-        """
-        获取项目的 Project ID
-        
-        Args:
-            owner: 所有者或命名空间
-            repo: 项目名称
-            
-        Returns:
-            Project ID 整数
-        """
-        project_id = f"{owner}/{repo}"
-        url = f"{self.base_url}/projects/{project_id.replace('/', '%2F')}"
-        
-        async with aiohttp.ClientSession(headers=self.headers) as session:
-            async with session.get(url) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    return data["id"]
-                elif response.status == 429:
-                    reset_timestamp = response.headers.get("RateLimit-Reset")
-                    reset_time = None
-                    if reset_timestamp:
-                        reset_time = datetime.fromtimestamp(int(reset_timestamp))
-                    raise RateLimitException(
-                        f"GitLab API 速率限制：{response.status}",
-                        reset_time
-                    )
-                else:
-                    raise Exception(f"获取项目ID失败: {response.status}")
-
 
     async def get_readme(self, owner: str, repo: str, branch: str = "main") -> str:
         """
@@ -69,14 +36,40 @@ class GitLabClient(GenericClient):
         Returns:
             README 内容字符串
         """
+        # GitLab 项目 ID 需要使用 URL 编码的格式, 例如 "namespace/project" -> "namespace%2Fproject"
+        # URL编码的路径与数字ID通用，为了保持API一致性，使用这种方式
         project_id = f"{owner}/{repo}"
-        url = f"{self.base_url}/projects/{project_id.replace('/', '%2F')}/repository/files/README.md/raw"
-        params = {"ref": branch}
+        url = f"{self.base_url}/projects/{project_id.replace('/', '%2F')}/repository/tree"
+        params = {
+            "ref": branch,
+            "per_page": 100
+            }
         
         async with aiohttp.ClientSession(headers=self.headers) as session:
             async with session.get(url, params=params) as response:
                 if response.status == 200:
-                    return await response.text()
+                    tree_data = await response.json()
+                    for i in tree_data:
+                        if i['type'] == 'blob' and i['name'].lower().startswith('readme'):
+                            readme_url = f"{self.base_url}/projects/{project_id.replace('/', '%2F')}/repository/files/{i['path'].replace('/', '%2F')}/raw"
+                            readme_params = {
+                                "ref": branch
+                            }
+                            async with session.get(readme_url, params=readme_params) as readme_response:
+                                if readme_response.status == 200:
+                                    return await readme_response.text()
+                                elif readme_response.status == 429:
+                                    reset_timestamp = readme_response.headers.get("RateLimit-Reset")
+                                    reset_time = None
+                                    if reset_timestamp:
+                                        reset_time = datetime.fromtimestamp(int(reset_timestamp))
+                                    raise RateLimitException(
+                                        f"GitLab API 速率限制：{readme_response.status}",
+                                        reset_time
+                                    )
+                                else:
+                                    raise Exception(f"获取 README 文件失败: {readme_response.status}")
+                    raise Exception("README 文件未找到")
                 elif response.status == 429:
                     reset_timestamp = response.headers.get("RateLimit-Reset")
                     reset_time = None
@@ -120,11 +113,11 @@ class GitLabClient(GenericClient):
                     for commit in commits_data:
                         commit_info = {
                             "message": commit.get("message", ""),
-                            "sha": commit.get("id", ""),
+                            "sha": commit.get("short_id", ""),
                             "author_name": commit.get("author_name", ""),
                             "author_email": commit.get("author_email", "")
                         }
-                        extracted_info += f"Commit {commit_info['sha'][:7]} by {commit_info['author_name']}: {commit_info['message']}\n"
+                        extracted_info += f"Commit {commit_info['sha']} by {commit_info['author_name']}: {commit_info['message']}\n"
                     return extracted_info
                 elif response.status == 429:
                     reset_timestamp = response.headers.get("RateLimit-Reset")
@@ -161,7 +154,8 @@ class GitLabClient(GenericClient):
         url = f"{self.base_url}/projects/{project_id.replace('/', '%2F')}/issues"
         params = {
             "state": state,
-            "updated_after": since.isoformat()
+            "updated_after": since.isoformat(),
+            "scope": "all"
         }
         
         async with aiohttp.ClientSession(headers=self.headers) as session:
