@@ -1,6 +1,6 @@
 """GitHub API 客户端实现"""
 import aiohttp
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Literal
 from datetime import datetime
 from .generic_client import GenericClient, RateLimitException
 
@@ -113,7 +113,7 @@ class GitHubClient(GenericClient):
                 else:
                     raise Exception(f"获取提交记录失败: {response.status}")
     
-    async def get_issues_since(self, owner: str, repo: str, since: datetime) -> str:
+    async def get_issues_since(self, owner: str, repo: str, since: datetime, state: Literal["open", "closed", "all"] = "all", contains_body: bool = False) -> str:
         """
         获取自指定时间以来的问题记录
         
@@ -130,10 +130,11 @@ class GitHubClient(GenericClient):
             - number (问题编号)
             - assignees (指派人信息)
             - labels (标签信息)
+            - （可选）body (问题正文)
         """
         url = f"{self.base_url}/repos/{owner}/{repo}/issues"
         params = {
-            "state": "all",
+            "state": state,
             "since": since.isoformat()
         }
         
@@ -149,7 +150,9 @@ class GitHubClient(GenericClient):
                                 labels = ",".join([str(label['name']) for label in issue['labels']])
                             else:
                                 labels = None
-                            extracted_info += f"Issue #{issue['number']} by {issue['user']['login']}: {issue['title']} (State: {issue['state']}), {'(Labels: {labels})' if labels else ''})\n"
+                            extracted_info += f"Issue #{issue['number']} by {issue['user']['login']}: {issue['title']} (State: {issue['state']}), {'(Labels: {labels})' if labels else ''}\n"
+                            if contains_body:
+                                extracted_info += issue['body'] + "\n"
                     return extracted_info
                 elif response.status == 429:
                     reset_timestamp = response.headers.get("X-RateLimit-Reset")
@@ -163,7 +166,7 @@ class GitHubClient(GenericClient):
                 else:
                     raise Exception(f"获取问题记录失败: {response.status}")
     
-    async def get_pull_requests_since(self, owner: str, repo: str, since: datetime) -> List[Dict[str, Any]]:
+    async def get_pull_requests_since(self, owner: str, repo: str, since: datetime, state: Literal["open", "closed", "all"] = "all", contains_body: bool = False) -> str:
         """
         获取自指定时间以来的拉取请求记录
         
@@ -173,18 +176,35 @@ class GitHubClient(GenericClient):
             since: 起始时间
         
         Returns:
-            拉取请求记录列表
+            包含关键信息的拉取请求字符串（每行一个拉取请求），信息包括：
+            - title (拉取请求标题)
+            - user (创建者信息)
+            - state (拉取请求状态)
+            - number (拉取请求编号)
+            - assignees (指派人信息)
+            - labels (标签信息)
+            - (可选) body (拉取请求正文)
         """
         url = f"{self.base_url}/repos/{owner}/{repo}/pulls"
         params = {
-            "state": "all",
+            "state": state,
             "since": since.isoformat()
         }
         
         async with aiohttp.ClientSession(headers=self.headers) as session:
             async with session.get(url, params=params) as response:
                 if response.status == 200:
-                    return await response.json()
+                    pr_data = await response.json()
+                    extracted_info = ""
+                    for pr in pr_data:
+                        if pr['labels']:
+                            labels = ",".join([str(label['name']) for label in pr['labels']])
+                        else:
+                            labels = None
+                        extracted_info += f"PR #{pr['number']} by {pr['user']['login']}: {pr['title']} (State: {pr['state']}) {'(Labels: {labels})' if labels else ''}\n"
+                        if contains_body:
+                            extracted_info += pr['body'] + "\n"
+                    return extracted_info
                 elif response.status == 429:
                     reset_timestamp = response.headers.get("X-RateLimit-Reset")
                     reset_time = None
@@ -227,8 +247,68 @@ class GitHubClient(GenericClient):
                     )
                 else:
                     raise Exception(f"获取提交信息失败: {response.status}")
-    
-    async def get_issue_comments_since(self, owner: str, repo: str, issue_number: int, since: datetime) -> List[Dict[str, Any]]:
+    async def get_issue(self, owner: str, repo: str, issue_number: int) -> str:
+        """
+        获取指定问题的信息
+
+        Args:
+            owner: 仓库所有者
+            repo: 仓库名称
+            issue_number: 问题编号
+        Returns:
+            包含问题信息的字符串，与get_issues_since返回格式相同
+        """
+        url = f"{self.base_url}/repos/{owner}/{repo}/issues/{issue_number}"
+        async with aiohttp.ClientSession(headers=self.headers) as session:
+            async with session.get(url) as response:
+                if response.status == 200:
+                    issue = await response.json()
+                    labels = ",".join([str(label['name']) for label in issue['labels']]) if issue['labels'] else None
+                    issue_info = f"Issue #{issue['number']} by {issue['user']['login']}: {issue['title']} (State: {issue['state']}), {'(Labels: {labels})' if labels else ''}\n"
+                    issue_info += issue['body'] + "\n"
+                    return issue_info
+                elif response.status == 429:
+                    reset_timestamp = response.headers.get("X-RateLimit-Reset")
+                    reset_time = None
+                    if reset_timestamp:
+                        reset_time = datetime.fromtimestamp(int(reset_timestamp))
+                    raise RateLimitException(
+                        f"GitHub API 速率限制：{response.status}",
+                        reset_time
+                    )
+                else:
+                    raise Exception(f"获取问题信息失败: {response.status}")
+    async def get_pull_request(self, owner: str, repo: str, pr_number: int) -> str:
+        """
+        获取指定拉取/合并请求的信息
+        Args:
+            owner: 仓库所有者
+            repo: 仓库名称
+            pr_number: 拉取请求编号
+        Returns:
+            包含拉取请求信息的字符串，与get_pull_requests_since返回格式相同
+        """
+        url = f"{self.base_url}/repos/{owner}/{repo}/pulls/{pr_number}"
+        async with aiohttp.ClientSession(headers=self.headers) as session:
+            async with session.get(url) as response:
+                if response.status == 200:
+                    pr = await response.json()
+                    labels = ",".join([str(label['name']) for label in pr['labels']]) if pr['labels'] else None
+                    pr_info = f"PR #{pr['number']} by {pr['user']['login']}: {pr['title']} (State: {pr['state']}) {'(Labels: {labels})' if labels else ''}\n"
+                    pr_info += pr['body'] + "\n"
+                    return pr_info
+                elif response.status == 429:
+                    reset_timestamp = response.headers.get("X-RateLimit-Reset")
+                    reset_time = None
+                    if reset_timestamp:
+                        reset_time = datetime.fromtimestamp(int(reset_timestamp))
+                    raise RateLimitException(
+                        f"GitHub API 速率限制：{response.status}",
+                        reset_time
+                    )
+                else:
+                    raise Exception(f"获取拉取请求信息失败: {response.status}")
+    async def get_issue_comments_since(self, owner: str, repo: str, issue_number: int, since: datetime) -> str:
         """
         获取自指定时间以来指定问题的评论
         
@@ -239,7 +319,8 @@ class GitHubClient(GenericClient):
             since: 起始时间
         
         Returns:
-            问题评论列表
+            包含问题评论的字符串，每条评论以如下格式：
+            <User>: <Comment>
         """
         url = f"{self.base_url}/repos/{owner}/{repo}/issues/{issue_number}/comments"
         params = {"since": since.isoformat()}
@@ -247,7 +328,8 @@ class GitHubClient(GenericClient):
         async with aiohttp.ClientSession(headers=self.headers) as session:
             async with session.get(url, params=params) as response:
                 if response.status == 200:
-                    return await response.json()
+                    issue_comment_data = await response.json()
+                    return "\n\n".join([f"{comment['user']['login']}: {comment['body']}" for comment in issue_comment_data])
                 elif response.status == 429:
                     reset_timestamp = response.headers.get("X-RateLimit-Reset")
                     reset_time = None
@@ -260,7 +342,7 @@ class GitHubClient(GenericClient):
                 else:
                     raise Exception(f"获取问题评论失败: {response.status}")
     
-    async def get_pull_request_comments_since(self, owner: str, repo: str, pr_number: int, since: datetime) -> List[Dict[str, Any]]:
+    async def get_pull_request_comments_since(self, owner: str, repo: str, pr_number: int, since: datetime) -> str:
         """
         获取自指定时间以来指定拉取请求的评论
         
@@ -271,7 +353,8 @@ class GitHubClient(GenericClient):
             since: 起始时间
         
         Returns:
-            拉取请求评论列表
+            包含拉取请求评论的字符串，每条评论以如下格式：
+            <User>: <Comment>
         """
         url = f"{self.base_url}/repos/{owner}/{repo}/pulls/{pr_number}/comments"
         params = {"since": since.isoformat()}
@@ -279,7 +362,8 @@ class GitHubClient(GenericClient):
         async with aiohttp.ClientSession(headers=self.headers) as session:
             async with session.get(url, params=params) as response:
                 if response.status == 200:
-                    return await response.json()
+                    pr_comment_data = await response.json()
+                    return "\n\n".join([f"{comment['user']['login']}: {comment['body']}" for comment in pr_comment_data])
                 elif response.status == 429:
                     reset_timestamp = response.headers.get("X-RateLimit-Reset")
                     reset_time = None
@@ -292,7 +376,7 @@ class GitHubClient(GenericClient):
                 else:
                     raise Exception(f"获取拉取请求评论失败: {response.status}")
     
-    async def compare_two_commits(self, owner: str, repo: str, base: str, head: str) -> Dict[str, Any]:
+    async def compare_two_commits(self, owner: str, repo: str, base: str, head: str) -> str:
         """
         比较两个提交之间的差异
         
@@ -310,7 +394,7 @@ class GitHubClient(GenericClient):
         async with aiohttp.ClientSession(headers=self.headers) as session:
             async with session.get(url) as response:
                 if response.status == 200:
-                    return await response.json()
+                    diff_data = await response.json()
                 elif response.status == 429:
                     reset_timestamp = response.headers.get("X-RateLimit-Reset")
                     reset_time = None

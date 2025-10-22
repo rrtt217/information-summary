@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Literal
 from datetime import datetime
 
 
@@ -13,6 +13,8 @@ class GenericClient(ABC):
     """通用的客户端接口"""
     token: Optional[str]
     base_url: str
+    # 目前，所有的方法都应返回纯文本字符串，以便LLM识读。
+    # 未来可以考虑返回更复杂的结构体，以便更灵活地处理不同的数据需求。
     @abstractmethod
     async def get_readme(self, owner: str, repo: str, branch: str) -> str:
         """获取指定仓库的README内容"""
@@ -21,18 +23,39 @@ class GenericClient(ABC):
     async def get_commit_messages_since(self, owner: str, repo: str, since: datetime, branch: str) -> Any:
         """获取自指定时间以来的提交记录"""
         pass
+
+    # 对于Issue 和PR，与Commit有几点不同：
+    # 1. Commit是基于分支的，而Issue和PR是基于仓库的，所以不需要branch参数。
+    # 2. Issue和PR有可能被关闭或合并，所以在获取时需要考虑它们的状态，因此需要state参数。
+    # 3. Issue和PR通常包含更多的元数据，如标签、评论等。对于get_*_since方法，包含评论会导致返回值过长，故这一部分被拆分到get_*_comments_since方法中。
+    #    然而是否包含Issue和PR的body应该是可选的。
+    # 4. (TODO) Issue和PR的数量可能远大于Commit，因此在实现时需要考虑分页处理。实现分页以后，可以把since改为Optional.
+    # 5. (TODO) Issue和PR的过滤条件可能更加复杂，如按标签、按作者等，未来可以考虑扩展这些功能。
+    
     @abstractmethod
-    async def get_issues_since(self, owner: str, repo: str, since: datetime) -> Any:
+    async def get_issues_since(self, owner: str, repo: str, since: datetime, state: Literal["open", "closed", "all"], contains_body: bool) -> Any:
         """获取自指定时间以来的问题记录"""
         pass
     @abstractmethod
-    async def get_pull_requests_since(self, owner: str, repo: str, since: datetime) -> Any:
+    async def get_pull_requests_since(self, owner: str, repo: str, since: datetime, state: Literal["open", "closed", "all"], contains_body: bool) -> Any:
         """获取自指定时间以来的拉取/合并请求记录"""
         pass
     @abstractmethod
     async def get_commit_message(self, owner: str, repo: str, ref: str) -> str:
         """获取指定提交的提交信息"""
         pass
+
+    # 以下这两个方法不会返回评论内容，因为Github API没有实现。
+    # (TODO) 原则上这两个方法应当处理更多的错误码，因为Issue和PR可能被删除或移动，导致无法访问。
+    @abstractmethod
+    async def get_issue(self, owner: str, repo: str, issue_number: int) -> Any:
+        """获取指定问题的信息"""
+        pass
+    @abstractmethod
+    async def get_pull_request(self, owner: str, repo: str, pr_number: int) -> Any:
+        """获取指定拉取/合并请求的信息"""
+        pass
+
     @abstractmethod
     async def get_issue_comments_since(self, owner: str, repo: str, issue_number: int, since: datetime) -> Any:
         """获取自指定时间以来指定问题的评论"""
