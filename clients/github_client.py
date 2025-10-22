@@ -391,10 +391,13 @@ class GitHubClient(GenericClient):
         """
         url = f"{self.base_url}/repos/{owner}/{repo}/compare/{base}...{head}"
         
+        headers = self.headers.copy()
+        headers["Accept"] = "application/vnd.github.v3.diff"
+
         async with aiohttp.ClientSession(headers=self.headers) as session:
             async with session.get(url) as response:
                 if response.status == 200:
-                    diff_data = await response.json()
+                    return await response.text()
                 elif response.status == 429:
                     reset_timestamp = response.headers.get("X-RateLimit-Reset")
                     reset_time = None
