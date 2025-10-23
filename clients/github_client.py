@@ -56,7 +56,7 @@ class GitHubClient(GenericClient):
                 else:
                     raise Exception(f"获取 README 失败: {response.status}")
     @auto_retry_on_rate_limit()
-    async def get_commit_messages_since(self, owner: str, repo: str, since: datetime, branch: str = "main" ) -> str:
+    async def get_commit_messages_since(self, owner: str, repo: str, since: datetime, contains_full_sha: bool, branch: str = "main" ) -> str:
         """
         获取自指定时间以来的提交记录，提取关键信息
         
@@ -87,7 +87,7 @@ class GitHubClient(GenericClient):
                     for commit in commits_data:
                         commit_info = {
                             "message": commit.get("commit", {}).get("message", ""),
-                            "sha": commit.get("sha", ""),
+                            "sha": commit.get("sha", "")[:7] if not contains_full_sha else commit.get("sha", ""),
                             "html_url": commit.get("html_url", "")
                         }
                         
@@ -99,7 +99,7 @@ class GitHubClient(GenericClient):
                                 "email": author_info.get("email"),
                                 "login": author_info.get("login")
                         }
-                        extracted_info += f"Commit {commit_info['sha'][:7]} by {commit_info['author']['name']}: {commit_info['message']}\n"
+                        extracted_info += f"Commit {commit_info['sha']} by {commit_info['author']['name']}: {commit_info['message']}\n"
                     return extracted_info
                 elif response.status == 429:
                     reset_timestamp = response.headers.get("X-RateLimit-Reset")

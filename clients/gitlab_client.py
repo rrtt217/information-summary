@@ -82,7 +82,7 @@ class GitLabClient(GenericClient):
                 else:
                     raise Exception(f"获取 README 失败: {response.status}")
     @auto_retry_on_rate_limit()
-    async def get_commit_messages_since(self, owner: str, repo: str, since: datetime, branch: str = "main") -> str:
+    async def get_commit_messages_since(self, owner: str, repo: str, since: datetime, contains_full_sha: bool = False, branch: str = "main") -> str:
         """
         获取自指定时间以来的提交记录，提取关键信息
         
@@ -113,7 +113,7 @@ class GitLabClient(GenericClient):
                     for commit in commits_data:
                         commit_info = {
                             "message": commit.get("message", ""),
-                            "sha": commit.get("short_id", ""),
+                            "sha": commit.get("short_id", "") if not contains_full_sha else commit.get("id", ""),
                             "author_name": commit.get("author_name", ""),
                             "author_email": commit.get("author_email", "")
                         }
@@ -409,7 +409,13 @@ class GitLabClient(GenericClient):
         async with aiohttp.ClientSession(headers=self.headers) as session:
             async with session.get(url, params=params) as response:
                 if response.status == 200:
-                    return await response.text()
+                    compare_data = await response.json()
+                    diffs = compare_data.get("diffs", [])
+                    diff_summary = ""
+                    for diff in diffs:
+                        diff_summary += f"File: {diff.get('new_path', '')}\n"
+                        diff_summary += diff.get("diff", "") + "\n\n"
+                    return diff_summary
                 elif response.status == 429:
                     reset_timestamp = response.headers.get("RateLimit-Reset")
                     reset_time = None
