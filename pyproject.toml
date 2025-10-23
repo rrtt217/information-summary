@@ -12,4 +12,5 @@ dependencies = [
     "argparse",
     "pyyaml",
     "aiohttp",
+    "openai",
 ]
