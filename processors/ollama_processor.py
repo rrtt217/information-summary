@@ -1,5 +1,5 @@
 from ollama import AsyncClient
-from services.generic_processor import GenericProcessor
+from processors.generic_processor import GenericProcessor
 from typing import Optional
 
 class OllamaProcessor(GenericProcessor):

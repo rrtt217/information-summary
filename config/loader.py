@@ -87,7 +87,6 @@ class ConfigLoader:
                 repo=repo_dict.get('repo'),
                 branch=repo_dict.get('branch', 'main'),
                 token=repo_dict.get('token'),
-                project_id=repo_dict.get('project_id'),
                 base_url=repo_dict.get('base_url')
             )
             repositories.append(repo_config)

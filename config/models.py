@@ -14,7 +14,6 @@ class RepositoryConfig:
     branch: str = "main"
     token: Optional[str] = None
     # GitLab 特定字段
-    project_id: Optional[str] = None
     base_url: Optional[str] = None
 
 
