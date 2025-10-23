@@ -2,7 +2,7 @@
 import aiohttp
 from typing import Any, Dict, List, Optional, Literal
 from datetime import datetime
-from .generic_client import GenericClient, RateLimitException
+from .generic_client import GenericClient, RateLimitException, auto_retry_on_rate_limit
 
 
 class GitHubClient(GenericClient):
@@ -23,7 +23,7 @@ class GitHubClient(GenericClient):
         }
         if self.token:
             self.headers["Authorization"] = f"token {self.token}" 
-    
+    @auto_retry_on_rate_limit()
     async def get_readme(self, owner: str, repo: str, branch: str = "main") -> str:
         """
         获取指定仓库的 README 内容
@@ -55,7 +55,7 @@ class GitHubClient(GenericClient):
                     )
                 else:
                     raise Exception(f"获取 README 失败: {response.status}")
-    
+    @auto_retry_on_rate_limit()
     async def get_commit_messages_since(self, owner: str, repo: str, since: datetime, branch: str = "main" ) -> str:
         """
         获取自指定时间以来的提交记录，提取关键信息
@@ -112,7 +112,7 @@ class GitHubClient(GenericClient):
                     )
                 else:
                     raise Exception(f"获取提交记录失败: {response.status}")
-    
+    @auto_retry_on_rate_limit()
     async def get_issues_since(self, owner: str, repo: str, since: datetime, state: Literal["open", "closed", "all"] = "all", contains_body: bool = False) -> str:
         """
         获取自指定时间以来的问题记录
@@ -165,7 +165,7 @@ class GitHubClient(GenericClient):
                     )
                 else:
                     raise Exception(f"获取问题记录失败: {response.status}")
-    
+    @auto_retry_on_rate_limit()
     async def get_pull_requests_since(self, owner: str, repo: str, since: datetime, state: Literal["open", "closed", "all"] = "all", contains_body: bool = False) -> str:
         """
         获取自指定时间以来的拉取请求记录
@@ -216,7 +216,7 @@ class GitHubClient(GenericClient):
                     )
                 else:
                     raise Exception(f"获取拉取请求失败: {response.status}")
-    
+    @auto_retry_on_rate_limit()
     async def get_commit_message(self, owner: str, repo: str, ref: str) -> str:
         """
         获取指定提交的提交信息
@@ -247,6 +247,7 @@ class GitHubClient(GenericClient):
                     )
                 else:
                     raise Exception(f"获取提交信息失败: {response.status}")
+    @auto_retry_on_rate_limit()
     async def get_issue(self, owner: str, repo: str, issue_number: int) -> str:
         """
         获取指定问题的信息
@@ -278,6 +279,7 @@ class GitHubClient(GenericClient):
                     )
                 else:
                     raise Exception(f"获取问题信息失败: {response.status}")
+    @auto_retry_on_rate_limit()
     async def get_pull_request(self, owner: str, repo: str, pr_number: int) -> str:
         """
         获取指定拉取/合并请求的信息
@@ -308,6 +310,7 @@ class GitHubClient(GenericClient):
                     )
                 else:
                     raise Exception(f"获取拉取请求信息失败: {response.status}")
+    @auto_retry_on_rate_limit()
     async def get_issue_comments_since(self, owner: str, repo: str, issue_number: int, since: datetime) -> str:
         """
         获取自指定时间以来指定问题的评论
@@ -341,7 +344,7 @@ class GitHubClient(GenericClient):
                     )
                 else:
                     raise Exception(f"获取问题评论失败: {response.status}")
-    
+    @auto_retry_on_rate_limit()
     async def get_pull_request_comments_since(self, owner: str, repo: str, pr_number: int, since: datetime) -> str:
         """
         获取自指定时间以来指定拉取请求的评论
@@ -375,7 +378,7 @@ class GitHubClient(GenericClient):
                     )
                 else:
                     raise Exception(f"获取拉取请求评论失败: {response.status}")
-    
+    @auto_retry_on_rate_limit()
     async def compare_two_commits(self, owner: str, repo: str, base: str, head: str) -> str:
         """
         比较两个提交之间的差异

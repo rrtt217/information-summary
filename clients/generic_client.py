@@ -1,6 +1,9 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Optional, Literal
+from typing import Any, Dict, Optional, Literal, TypeVar, Callable
+from functools import wraps
+import asyncio
 from datetime import datetime
+import logging
 
 
 class RateLimitException(Exception):
@@ -68,3 +71,42 @@ class GenericClient(ABC):
     async def compare_two_commits(self, owner: str, repo: str, base: str, head: str, ) -> Any:
         """比较两个提交之间的差异"""
         pass
+
+T = TypeVar('T')
+
+def auto_retry_on_rate_limit(
+    max_retries: int = 3,
+    base_delay: float = 1.0,
+    backoff_factor: float = 2.0
+):
+    """自动重试装饰器 - 支持异步函数"""
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
+        @wraps(func)
+        async def wrapper(*args: Any, **kwargs: Any) -> Any:
+            retries = 0
+            while retries <= max_retries:
+                try:
+                    return await func(*args, **kwargs)
+                except RateLimitException as e:
+                    if retries >= max_retries:
+                        raise e
+                    # 计算延迟时间
+                    delay = base_delay * (backoff_factor ** retries)
+                    
+                    # 如果提供了重置时间，使用更长的等待
+                    if e.reset_time:
+                        now = datetime.now()
+                        if e.reset_time > now:
+                            delay = max(delay, (e.reset_time - now).total_seconds())
+                    
+                    logging.warning(
+                        f"遭遇速率限制，{delay:.2f}秒后重试 "
+                        f"(重试 {retries + 1}/{max_retries})"
+                    )
+                    
+                    # 使用异步sleep，不会阻塞事件循环
+                    await asyncio.sleep(delay)
+                    retries += 1
+                    continue  
+        return wrapper
+    return decorator
