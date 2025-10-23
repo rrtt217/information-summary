@@ -41,11 +41,6 @@ class PushConfig:
     services: List[PushServiceConfig] = field(default_factory=list)
 
 
-@dataclass
-class ScheduleConfig:
-    """调度配置"""
-    cron: str
-    repositories: List[str] = field(default_factory=list)
 
 
 @dataclass
@@ -54,6 +49,5 @@ class AppConfig:
     repositories: List[RepositoryConfig] = field(default_factory=list)
     ollama: OllamaConfig = field(default_factory=OllamaConfig)
     push: PushConfig = field(default_factory=PushConfig)
-    schedules: List[ScheduleConfig] = field(default_factory=list)
     log_level: str = "INFO"
     cache_dir: str = "./cache"

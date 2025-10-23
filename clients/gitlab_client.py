@@ -82,6 +82,42 @@ class GitLabClient(GenericClient):
                 else:
                     raise Exception(f"获取 README 失败: {response.status}")
     @auto_retry_on_rate_limit()
+    async def get_repository_info(self, owner: str, repo: str) -> str:
+        """
+        获取指定仓库的信息
+        
+        Args:
+            owner: 所有者或命名空间
+            repo: 项目名称
+            
+        Returns:
+            仓库信息字符串，包含描述、创建时间、最后更新时间等
+        """
+        project_id = f"{owner}/{repo}"
+        url = f"{self.base_url}/projects/{project_id.replace('/', '%2F')}"
+        
+        async with aiohttp.ClientSession(headers=self.headers) as session:
+            async with session.get(url) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    repo_info = f"Repository: {data.get('name', '')}\n"
+                    repo_info += f"Description: {data.get('description', '')}\n"
+                    repo_info += f"Created At: {data.get('created_at', '')}\n"
+                    repo_info += f"Last Activity At: {data.get('last_activity_at', '')}\n"
+                    repo_info += f"Visibility: {data.get('visibility', '')}\n"
+                    return repo_info
+                elif response.status == 429:
+                    reset_timestamp = response.headers.get("RateLimit-Reset")
+                    reset_time = None
+                    if reset_timestamp:
+                        reset_time = datetime.fromtimestamp(int(reset_timestamp))
+                    raise RateLimitException(
+                        f"GitLab API 速率限制：{response.status}",
+                        reset_time
+                    )
+                else:
+                    raise Exception(f"获取仓库信息失败: {response.status}")
+    @auto_retry_on_rate_limit()
     async def get_commit_messages_since(self, owner: str, repo: str, since: datetime, contains_full_sha: bool = False, branch: str = "main") -> str:
         """
         获取自指定时间以来的提交记录，提取关键信息
@@ -168,7 +204,7 @@ class GitLabClient(GenericClient):
                             labels = ",".join([str(label) for label in issue['labels']])
                         else:
                             labels = None
-                        extracted_info += f"Issue #{issue['iid']} by {issue['author']['username']}: {issue['title']} (State: {issue['state']}), {'(Labels: {labels})' if labels else ''}\n"
+                        extracted_info += f"Issue #{issue['iid']} by {issue['author']['username']}: {issue['title']} (State: {issue['state']}), {f'(Labels: {labels})' if labels else ''}\n"
                         if contains_body:
                             extracted_info += issue['description'] + "\n"
                     return extracted_info
@@ -220,7 +256,7 @@ class GitLabClient(GenericClient):
                             labels = ",".join([str(label) for label in mr['labels']])
                         else:
                             labels = None
-                        extracted_info += f"MR #{mr['iid']} by {mr['author']['username']}: {mr['title']} (State: {mr['state']}) {'(Labels: {labels})' if labels else ''}\n"
+                        extracted_info += f"MR #{mr['iid']} by {mr['author']['username']}: {mr['title']} (State: {mr['state']}) {f'(Labels: {labels})' if labels else ''}\n"
                         if contains_body:
                             extracted_info += mr['description'] + "\n"
                     return extracted_info
@@ -288,7 +324,7 @@ class GitLabClient(GenericClient):
                 if response.status == 200:
                     issue = await response.json()
                     labels = ",".join([str(label) for label in issue['labels']]) if issue['labels'] else None
-        issue_info = f"Issue #{issue['iid']} by {issue['author']['username']}: {issue['title']} (State: {issue['state']}), {'(Labels: {labels})' if labels else ''}\n"
+        issue_info = f"Issue #{issue['iid']} by {issue['author']['username']}: {issue['title']} (State: {issue['state']}), {f'(Labels: {labels})' if labels else ''}\n"
         issue_info += issue['description'] + "\n"
         return issue_info
     @auto_retry_on_rate_limit()
@@ -312,7 +348,7 @@ class GitLabClient(GenericClient):
                 if response.status == 200:
                     mr = await response.json()
                     labels = ",".join([str(label) for label in mr['labels']]) if mr['labels'] else None
-        mr_info = f"MR #{mr['iid']} by {mr['author']['username']}: {mr['title']} (State: {mr['state']}) {'(Labels: {labels})' if labels else ''}\n"
+        mr_info = f"MR #{mr['iid']} by {mr['author']['username']}: {mr['title']} (State: {mr['state']}) {f'(Labels: {labels})' if labels else ''}\n"
         mr_info += mr['description'] + "\n"
         return mr_info
     @auto_retry_on_rate_limit()

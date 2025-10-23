@@ -9,7 +9,7 @@ import yaml
 
 from .models import (
     AppConfig, RepositoryConfig, OllamaConfig, PushConfig, 
-    PushServiceConfig, ScheduleConfig
+    PushServiceConfig
 )
 
 
@@ -114,20 +114,12 @@ class ConfigLoader:
         
         push_config = PushConfig(services=push_services)
         
-        # 解析调度配置
-        schedules = []
-        for schedule_dict in config_dict.get('schedules', []):
-            schedule_config = ScheduleConfig(
-                cron=schedule_dict['cron'],
-                repositories=schedule_dict.get('repositories', [])
-        )
-        schedules.append(schedule_config)
+
         
         return AppConfig(
             repositories=repositories,
             ollama=ollama_config,
             push=push_config,
-            schedules=schedules,
             log_level=config_dict.get('log_level', 'INFO'),
             cache_dir=config_dict.get('cache_dir', './cache')
         )

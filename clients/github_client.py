@@ -56,6 +56,46 @@ class GitHubClient(GenericClient):
                 else:
                     raise Exception(f"获取 README 失败: {response.status}")
     @auto_retry_on_rate_limit()
+    async def get_repository_info(self, owner: str, repo: str) -> str:
+        """
+        获取指定仓库的信息
+        
+        Args:
+            owner: 仓库所有者
+            repo: 仓库名称
+        
+        Returns:
+            仓库信息字符串，包含描述、创建时间、更新时间、星标数、分支数等
+        """
+        url = f"{self.base_url}/repos/{owner}/{repo}"
+        
+        async with aiohttp.ClientSession(headers=self.headers) as session:
+            async with session.get(url) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    repo_info = (
+                        f"Repository: {data.get('full_name')}\n"
+                        f"Description: {data.get('description')}\n"
+                        f"Created at: {data.get('created_at')}\n"
+                        f"Updated at: {data.get('updated_at')}\n"
+                        f"Stars: {data.get('stargazers_count')}\n"
+                        f"Forks: {data.get('forks_count')}\n"
+                        f"Open Issues: {data.get('open_issues_count')}\n"
+                        f"Default Branch: {data.get('default_branch')}\n"
+                    )
+                    return repo_info
+                elif response.status == 429:
+                    reset_timestamp = response.headers.get("X-RateLimit-Reset")
+                    reset_time = None
+                    if reset_timestamp:
+                        reset_time = datetime.fromtimestamp(int(reset_timestamp))
+                    raise RateLimitException(
+                        f"GitHub API 速率限制：{response.status}",
+                        reset_time
+                    )
+                else:
+                    raise Exception(f"获取仓库信息失败: {response.status}")
+    @auto_retry_on_rate_limit()
     async def get_commit_messages_since(self, owner: str, repo: str, since: datetime, contains_full_sha: bool, branch: str = "main" ) -> str:
         """
         获取自指定时间以来的提交记录，提取关键信息
@@ -150,7 +190,7 @@ class GitHubClient(GenericClient):
                                 labels = ",".join([str(label['name']) for label in issue['labels']])
                             else:
                                 labels = None
-                            extracted_info += f"Issue #{issue['number']} by {issue['user']['login']}: {issue['title']} (State: {issue['state']}), {'(Labels: {labels})' if labels else ''}\n"
+                            extracted_info += f"Issue #{issue['number']} by {issue['user']['login']}: {issue['title']} (State: {issue['state']}), {f'(Labels: {labels})' if labels else ''}\n"
                             if contains_body:
                                 extracted_info += issue['body'] + "\n"
                     return extracted_info
@@ -201,7 +241,7 @@ class GitHubClient(GenericClient):
                             labels = ",".join([str(label['name']) for label in pr['labels']])
                         else:
                             labels = None
-                        extracted_info += f"PR #{pr['number']} by {pr['user']['login']}: {pr['title']} (State: {pr['state']}) {'(Labels: {labels})' if labels else ''}\n"
+                        extracted_info += f"PR #{pr['number']} by {pr['user']['login']}: {pr['title']} (State: {pr['state']}) {f'(Labels: {labels})' if labels else ''}\n"
                         if contains_body:
                             extracted_info += pr['body'] + "\n"
                     return extracted_info
@@ -265,7 +305,7 @@ class GitHubClient(GenericClient):
                 if response.status == 200:
                     issue = await response.json()
                     labels = ",".join([str(label['name']) for label in issue['labels']]) if issue['labels'] else None
-                    issue_info = f"Issue #{issue['number']} by {issue['user']['login']}: {issue['title']} (State: {issue['state']}), {'(Labels: {labels})' if labels else ''}\n"
+                    issue_info = f"Issue #{issue['number']} by {issue['user']['login']}: {issue['title']} (State: {issue['state']}), {f'(Labels: {labels})' if labels else ''}\n"
                     issue_info += issue['body'] + "\n"
                     return issue_info
                 elif response.status == 429:
@@ -296,7 +336,7 @@ class GitHubClient(GenericClient):
                 if response.status == 200:
                     pr = await response.json()
                     labels = ",".join([str(label['name']) for label in pr['labels']]) if pr['labels'] else None
-                    pr_info = f"PR #{pr['number']} by {pr['user']['login']}: {pr['title']} (State: {pr['state']}) {'(Labels: {labels})' if labels else ''}\n"
+                    pr_info = f"PR #{pr['number']} by {pr['user']['login']}: {pr['title']} (State: {pr['state']}) {f'(Labels: {labels})' if labels else ''}\n"
                     pr_info += pr['body'] + "\n"
                     return pr_info
                 elif response.status == 429:
