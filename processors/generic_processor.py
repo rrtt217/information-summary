@@ -6,23 +6,32 @@ sys.path.append("..")  # 添加上级目录到模块搜索路径
 from clients.generic_client import GenericClient
 
 class GenericProcessor(ABC):
-    model_name: str
-    temperature: float
-    max_tokens: int
-    api_key: Optional[str]
-    base_url: str
-    prompts: Dict[str, str] = {
-        "translate": "Translate the following text from {from_lang} to {to_lang}:\n\n",
-        "translate-without-from": "Translate the following text to {to_lang}:\n\n",
-        "translate-en-to-zh": "将以下英文文本翻译成中文：\n\n",
-        "translate-to-zh": "将以下文本翻译成中文：\n\n",
-        "commit-summary": "Summarize the following commit messages from {owner}/{repo}:\n\n",
-        "commit-summary-zh": "总结来自{owner}/{repo}的以下提交记录的关键信息：\n\n",
-        "readme-summary": "Summarize the following README content:\n\n",
-        "readme-summary-zh": "总结以下README内容的关键信息：\n\n",
-        "diff-analysis": "Analyze the following detailed diffs and summarize the key changes:\n\n",
-        "diff-analysis-zh": "分析以下详细的代码差异，并总结出关键的更改内容：\n\n"
-    }
+    def __init__(
+        self,
+        model_name: str = "default",
+        temperature: float = 0.7,
+        max_tokens: int = 1024,
+        api_key: Optional[str] = None,
+        base_url: str = "http://localhost:11434",
+        prompts: Optional[Dict[str, str]] = None
+    ):
+        self.model_name = model_name
+        self.temperature = temperature
+        self.max_tokens = max_tokens
+        self.api_key = api_key
+        self.base_url = base_url
+        self.prompts = prompts or {
+            "translate": "Translate the following text from {from_lang} to {to_lang}:\n\n",
+            "translate-without-from": "Translate the following text to {to_lang}:\n\n",
+            "translate-en-to-zh": "将以下英文文本翻译成中文：\n\n",
+            "translate-to-zh": "将以下文本翻译成中文：\n\n",
+            "commit-summary": "Summarize the following commit messages from {owner}/{repo}:\n\n",
+            "commit-summary-zh": "总结来自{owner}/{repo}的以下提交记录的关键信息：\n\n",
+            "readme-summary": "Summarize the following README content:\n\n",
+            "readme-summary-zh": "总结以下README内容的关键信息：\n\n",
+            "diff-analysis": "Analyze the following detailed diffs and summarize the key changes:\n\n",
+            "diff-analysis-zh": "分析以下详细的代码差异，并总结出关键的更改内容：\n\n"
+        }
     @abstractmethod
     async def generate(self, prompt: str, input: str) -> str:
         pass

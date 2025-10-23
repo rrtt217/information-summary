@@ -13,4 +13,6 @@ dependencies = [
     "pyyaml",
     "aiohttp",
     "openai",
+    "apscheduler",
+    "rich",
 ]

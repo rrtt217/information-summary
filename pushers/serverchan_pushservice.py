@@ -3,7 +3,8 @@ from pushers.generic_pushservice import GenericPushService
 from typing import Optional, Dict, Any
 
 class ServerChanPushService(GenericPushService):
-    config: Dict[str, Any]
+    def __init__(self, config: Dict[str, Any]):
+        super().__init__(config)
 
     async def push(self, content: str, title: str = "", url: Optional[str] = None) -> None:
         sendkey = self.config.get("sendkey")
