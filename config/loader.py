@@ -8,7 +8,7 @@ from typing import Dict, Any, Union, List
 import yaml
 
 from .models import (
-    AppConfig, RepositoryConfig, OllamaConfig, PushConfig, 
+    AppConfig, RepositoryConfig, LlmProcessorConfig,
     PushServiceConfig
 )
 
@@ -91,35 +91,34 @@ class ConfigLoader:
             )
             repositories.append(repo_config)
         
-        # 解析Ollama配置
-        ollama_dict = config_dict.get('ollama', {})
-        ollama_config = OllamaConfig(
-            base_url=ollama_dict.get('base_url', 'http://localhost:11434'),
-            model=ollama_dict.get('model', 'llama2'),
-            system_prompt=ollama_dict.get('system_prompt', '你是一个代码仓库分析助手'),
-            temperature=ollama_dict.get('temperature', 0.7),
-            max_tokens=ollama_dict.get('max_tokens', 2048)
-        )
+        # 解析LLM文本处理配置
+        llm_processors = []
+        for proc_dict in config_dict.get('processors', []):
+            llm_processor = LlmProcessorConfig(
+                type=proc_dict.get('type', 'ollama'),
+                base_url=proc_dict.get('base_url', 'http://localhost:11434'),
+                model=proc_dict.get('model', 'llama2'),
+                system_prompt=proc_dict.get('system_prompt', '你是一个代码仓库分析助手'),
+                temperature=proc_dict.get('temperature', 0.7),
+                max_tokens=proc_dict.get('max_tokens', 2048)
+            )
+            llm_processors.append(llm_processor)
         
         # 解析推送配置
-        push_dict = config_dict.get('push', {})
         push_services = []
-        for service_dict in push_dict.get('services', []):
+        for service_dict in config_dict.get('push_services', []):
             push_service = PushServiceConfig(
                 type=service_dict['type'],
-                sendkey=service_dict.get('sendkey'),
-            webhook_url=service_dict.get('webhook_url')
+                configs=service_dict.get('configs', {}),
             )
             push_services.append(push_service)
-        
-        push_config = PushConfig(services=push_services)
         
 
         
         return AppConfig(
             repositories=repositories,
-            ollama=ollama_config,
-            push=push_config,
+            processors=llm_processors,
+            push_services=push_services,
             log_level=config_dict.get('log_level', 'INFO'),
             cache_dir=config_dict.get('cache_dir', './cache')
         )

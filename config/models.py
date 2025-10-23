@@ -1,7 +1,7 @@
 """配置数据模型定义"""
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional, Any, Literal
 
 
 @dataclass
@@ -13,13 +13,16 @@ class RepositoryConfig:
     repo: Optional[str] = None
     branch: str = "main"
     token: Optional[str] = None
+    jobs: Dict[str, str] = field(default_factory=dict)
     # GitLab 特定字段
     base_url: Optional[str] = None
+    
 
 
 @dataclass
-class OllamaConfig:
-    """Ollama 配置"""
+class LlmProcessorConfig:
+    """大语言模型文本处理配置"""
+    type : Literal["ollama", "openai"] = "ollama"
     base_url: str = "http://localhost:11434"
     model: str = "llama2"
     system_prompt: str = "你是一个代码仓库分析助手"
@@ -30,24 +33,14 @@ class OllamaConfig:
 @dataclass
 class PushServiceConfig:
     """推送服务配置"""
-    type: str  # "serverchan" 或 "webhook"
-    sendkey: Optional[str] = None
-    webhook_url: Optional[str] = None
-
-
-@dataclass
-class PushConfig:
-    """推送配置"""
-    services: List[PushServiceConfig] = field(default_factory=list)
-
-
-
+    type: str # 目前只支持serverchan
+    configs: Dict[str, str] = field(default_factory=dict)
 
 @dataclass
 class AppConfig:
     """应用主配置"""
     repositories: List[RepositoryConfig] = field(default_factory=list)
-    ollama: OllamaConfig = field(default_factory=OllamaConfig)
-    push: PushConfig = field(default_factory=PushConfig)
+    processors: List[LlmProcessorConfig] = field(default_factory=list)
+    push_services: List[PushServiceConfig] = field(default_factory=list)
     log_level: str = "INFO"
     cache_dir: str = "./cache"
