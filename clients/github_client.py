@@ -3,7 +3,7 @@ import aiohttp
 from typing import Any, Dict, List, Optional, Literal
 from datetime import datetime
 from .generic_client import GenericClient, RateLimitException, auto_retry_on_rate_limit
-
+import base64
 
 class GitHubClient(GenericClient):
     """GitHub API 客户端"""
@@ -24,7 +24,7 @@ class GitHubClient(GenericClient):
         if self.token:
             self.headers["Authorization"] = f"token {self.token}" 
     @auto_retry_on_rate_limit()
-    async def get_readme(self, owner: str, repo: str, branch: str = "main") -> str:
+    async def get_readme(self, owner: str, repo: str, branch: Optional[str] = None) -> str:
         """
         获取指定仓库的 README 内容
         
@@ -37,13 +37,13 @@ class GitHubClient(GenericClient):
             README 内容字符串
         """
         url = f"{self.base_url}/repos/{owner}/{repo}/readme"
-        params = {"ref": branch}
+        params = {"ref": branch} if branch else {}
         
         async with aiohttp.ClientSession(headers=self.headers) as session:
             async with session.get(url, params=params) as response:
                 if response.status == 200:
                     data = await response.json()
-                    return data.get("content", "")
+                    return base64.b64decode(data.get("content", "")).decode("utf-8")
                 elif response.status == 429:
                     reset_timestamp = response.headers.get("X-RateLimit-Reset")
                     reset_time = None
@@ -96,7 +96,7 @@ class GitHubClient(GenericClient):
                 else:
                     raise Exception(f"获取仓库信息失败: {response.status}")
     @auto_retry_on_rate_limit()
-    async def get_commit_messages_since(self, owner: str, repo: str, since: datetime, contains_full_sha: bool, branch: str = "main" ) -> str:
+    async def get_commit_messages_since(self, owner: str, repo: str, since: datetime, contains_full_sha: bool, branch: Optional[str] = None ) -> str:
         """
         获取自指定时间以来的提交记录，提取关键信息
         
@@ -114,9 +114,10 @@ class GitHubClient(GenericClient):
         """
         url = f"{self.base_url}/repos/{owner}/{repo}/commits"
         params = {
-            "sha": branch,
             "since": since.isoformat()
         }
+        if branch:
+            params["sha"] = branch
         
         async with aiohttp.ClientSession(headers=self.headers) as session:
             async with session.get(url, params=params) as response:

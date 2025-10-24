@@ -19,7 +19,7 @@ class GenericClient(ABC):
     # 目前，所有的方法都应返回纯文本字符串，以便LLM识读。
     # 未来可以考虑返回更复杂的结构体，以便更灵活地处理不同的数据需求。
     @abstractmethod
-    async def get_readme(self, owner: str, repo: str, branch: str) -> str:
+    async def get_readme(self, owner: str, repo: str, branch: Optional[str] = None) -> str:
         """获取指定仓库的README内容"""
         pass
     @abstractmethod
@@ -27,7 +27,7 @@ class GenericClient(ABC):
         """获取指定仓库的信息"""
         pass
     @abstractmethod
-    async def get_commit_messages_since(self, owner: str, repo: str,  since: datetime, contains_full_sha: bool, branch: str) -> Any:
+    async def get_commit_messages_since(self, owner: str, repo: str,  since: datetime, contains_full_sha: bool = False, branch: Optional[str] = None) -> Any:
         """获取自指定时间以来的提交记录"""
         pass
 
@@ -72,7 +72,7 @@ class GenericClient(ABC):
         """获取自指定时间以来指定拉取/合并请求的评论"""
         pass
     @abstractmethod
-    async def compare_two_commits(self, owner: str, repo: str, base: str, head: str, ) -> Any:
+    async def compare_two_commits(self, owner: str, repo: str, base: str, head: str) -> Any:
         """比较两个提交之间的差异"""
         pass
 

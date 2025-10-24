@@ -4,7 +4,7 @@ import base64
 from typing import Any, Dict, List, Optional, Literal
 from datetime import datetime
 from .generic_client import GenericClient, RateLimitException, auto_retry_on_rate_limit
-
+import base64
 
 class GitLabClient(GenericClient):
     """GitLab API 客户端"""
@@ -24,7 +24,7 @@ class GitLabClient(GenericClient):
         if self.token:
             self.headers["Authorization"] = f"Bearer {self.token}"
     @auto_retry_on_rate_limit()
-    async def get_readme(self, owner: str, repo: str, branch: str = "main") -> str:
+    async def get_readme(self, owner: str, repo: str, branch: Optional[str] = None) -> str:
         """
         获取指定仓库的 README 内容
         
@@ -41,7 +41,7 @@ class GitLabClient(GenericClient):
         project_id = f"{owner}/{repo}"
         url = f"{self.base_url}/projects/{project_id.replace('/', '%2F')}/repository/tree"
         params = {
-            "ref": branch,
+            "ref": branch if branch else "HEAD",
             "per_page": 100
             }
         
@@ -57,7 +57,8 @@ class GitLabClient(GenericClient):
                             }
                             async with session.get(readme_url, params=readme_params) as readme_response:
                                 if readme_response.status == 200:
-                                    return await readme_response.text()
+                                    data = await readme_response.json()
+                                    return base64.b64decode(data.get("content", "")).decode("utf-8")
                                 elif readme_response.status == 429:
                                     reset_timestamp = readme_response.headers.get("RateLimit-Reset")
                                     reset_time = None
@@ -118,7 +119,7 @@ class GitLabClient(GenericClient):
                 else:
                     raise Exception(f"获取仓库信息失败: {response.status}")
     @auto_retry_on_rate_limit()
-    async def get_commit_messages_since(self, owner: str, repo: str, since: datetime, contains_full_sha: bool = False, branch: str = "main") -> str:
+    async def get_commit_messages_since(self, owner: str, repo: str, since: datetime, contains_full_sha: bool = False, branch: Optional[str] = None) -> str:
         """
         获取自指定时间以来的提交记录，提取关键信息
         
@@ -137,9 +138,10 @@ class GitLabClient(GenericClient):
         project_id = f"{owner}/{repo}"
         url = f"{self.base_url}/projects/{project_id.replace('/', '%2F')}/repository/commits"
         params = {
-            "ref_name": branch,
             "since": since.isoformat()
         }
+        if branch:
+            params["ref_name"] = branch
         
         async with aiohttp.ClientSession(headers=self.headers) as session:
             async with session.get(url, params=params) as response:
@@ -243,7 +245,8 @@ class GitLabClient(GenericClient):
         url = f"{self.base_url}/projects/{project_id.replace('/', '%2F')}/merge_requests"
         params = {
             "state": state,
-            "updated_after": since.isoformat()
+            "updated_after": since.isoformat(),
+            "scope": "all"
         }
         
         async with aiohttp.ClientSession(headers=self.headers) as session:

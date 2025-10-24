@@ -11,7 +11,7 @@ class RepositoryConfig:
     type: str  # "github" 或 "gitlab"
     owner: Optional[str] = None
     repo: Optional[str] = None
-    branch: str = "main"
+    branch: Optional[str] = None
     token: Optional[str] = None
     jobs: Dict[str, str] = field(default_factory=dict)
     # GitLab 特定字段

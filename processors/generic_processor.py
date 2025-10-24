@@ -48,7 +48,7 @@ class GenericProcessor(ABC):
         else:
             prompt = self.prompts.get("translate-without-from", "").format(to_lang=to_lang)
         return await self.generate(prompt, text)
-    async def generate_repository_description_from_readme(self, client: GenericClient, owner: str, repo: str, branch: str = "main") -> str:
+    async def generate_repository_description_from_readme(self, client: GenericClient, owner: str, repo: str, branch: Optional[str] = None) -> str:
         """
         生成指定仓库README的摘要。
         """
@@ -56,7 +56,7 @@ class GenericProcessor(ABC):
         readme_content = f"The README of the repository {owner}/{repo} is as follows:\n\n" + readme_content
         summary_prompt = self.prompts.get("commit-summary", "")
         return await self.generate(summary_prompt, readme_content)
-    async def summarize_repository_changes_since(self, client: GenericClient, owner: str, repo: str, since: datetime, branch: str = "main", diff_analysis: bool = False, use_info: bool = False) -> str:
+    async def summarize_repository_changes_since(self, client: GenericClient, owner: str, repo: str, since: datetime, branch: Optional[str] = None, diff_analysis: bool = False, use_info: bool = False) -> str:
         """
         总结自指定时间以来的仓库更改内容。
         如果diff_analysis为True，则获取更详细的diff信息进行分析。
