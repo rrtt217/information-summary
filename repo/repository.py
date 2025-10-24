@@ -85,11 +85,17 @@ class Repository:
                     kwargs = {}
                 
                 # 执行任务
+                logger.info(f"Executing job {job_name} of type {job_type}")
                 result = await job_func(*base_args, **kwargs)
+                logger.info(f"Job {job_name} completed, result length: {len(result) if result else 0}")
                 
                 # 如果有推送服务，推送结果
                 if push_service:
+                    logger.info(f"Calling push service with result")
                     await push_service(result)
+                    logger.info(f"Push service called successfully")
+                else:
+                    logger.warning(f"No push service available for job {job_name}")
             
             # 添加任务到调度器
             scheduler.add_job(
