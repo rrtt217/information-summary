@@ -81,13 +81,14 @@ class ConfigLoader:
         repositories = []
         for repo_dict in config_dict.get('repositories', []):
             repo_config = RepositoryConfig(
-                name=repo_dict['name'],
+                identifier=repo_dict['identifier'],
                 type=repo_dict['type'],
                 owner=repo_dict.get('owner'),
                 repo=repo_dict.get('repo'),
                 branch=repo_dict.get('branch', 'main'),
                 token=repo_dict.get('token'),
-                base_url=repo_dict.get('base_url')
+                base_url=repo_dict.get('base_url'),
+                jobs=repo_dict.get('jobs', {})
             )
             repositories.append(repo_config)
         
@@ -96,6 +97,7 @@ class ConfigLoader:
         for proc_dict in config_dict.get('processors', []):
             llm_processor = LlmProcessorConfig(
                 type=proc_dict.get('type', 'ollama'),
+                identifier=proc_dict.get('identifier', 'llama2'),
                 base_url=proc_dict.get('base_url', 'http://localhost:11434'),
                 model=proc_dict.get('model', 'llama2'),
                 system_prompt=proc_dict.get('system_prompt', '你是一个代码仓库分析助手'),
@@ -119,6 +121,7 @@ class ConfigLoader:
             repositories=repositories,
             processors=llm_processors,
             push_services=push_services,
+            default_processor=config_dict.get('default_processor', 'llama2'),
             log_level=config_dict.get('log_level', 'INFO'),
             cache_dir=config_dict.get('cache_dir', './cache')
         )

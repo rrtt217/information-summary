@@ -7,13 +7,23 @@ from typing import List, Dict, Optional, Any, Literal
 @dataclass
 class RepositoryConfig:
     """仓库配置"""
-    name: str
+    identifier: str
     type: str  # "github" 或 "gitlab"
-    owner: Optional[str] = None
-    repo: Optional[str] = None
+    owner: str
+    repo: str
     branch: Optional[str] = None
     token: Optional[str] = None
-    jobs: Dict[str, str] = field(default_factory=dict)
+    jobs: Dict[str, Dict[str,str]] = field(default_factory=dict) 
+    """
+        自定义任务配置, 格式为
+        {
+        "job_name": {
+            "job_type": "",  # 任务类型，如 "commit_summary", "issue_summary" 等
+            "cron": "*/5 * * * *",  # cron表达式
+            ... 其他任务相关配置
+            }
+        }
+    """
     # GitLab 特定字段
     base_url: Optional[str] = None
     
@@ -23,6 +33,7 @@ class RepositoryConfig:
 class LlmProcessorConfig:
     """大语言模型文本处理配置"""
     type : Literal["ollama", "openai"] = "ollama"
+    identifier: str = "llama2"
     base_url: str = "http://localhost:11434"
     model: str = "llama2"
     system_prompt: str = "你是一个代码仓库分析助手"
@@ -42,5 +53,6 @@ class AppConfig:
     repositories: List[RepositoryConfig] = field(default_factory=list)
     processors: List[LlmProcessorConfig] = field(default_factory=list)
     push_services: List[PushServiceConfig] = field(default_factory=list)
+    default_processor: str = "llama2"
     log_level: str = "INFO"
     cache_dir: str = "./cache"

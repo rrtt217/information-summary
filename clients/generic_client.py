@@ -16,6 +16,9 @@ class GenericClient(ABC):
     """通用的客户端接口"""
     token: Optional[str]
     base_url: str
+    @abstractmethod
+    def __init__(self, token: Optional[str] = None, base_url: str = "https://api.github.com"):
+        pass
     # 目前，所有的方法都应返回纯文本字符串，以便LLM识读。
     # 未来可以考虑返回更复杂的结构体，以便更灵活地处理不同的数据需求。
     @abstractmethod
