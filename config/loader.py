@@ -102,7 +102,8 @@ class ConfigLoader:
                 model=proc_dict.get('model', 'llama2'),
                 system_prompt=proc_dict.get('system_prompt', '你是一个代码仓库分析助手'),
                 temperature=proc_dict.get('temperature', 0.7),
-                max_tokens=proc_dict.get('max_tokens', 2048)
+                max_tokens=proc_dict.get('max_tokens', 2048),
+                languange=proc_dict.get('languange', 'zh')
             )
             llm_processors.append(llm_processor)
         

@@ -39,6 +39,7 @@ class LlmProcessorConfig:
     system_prompt: str = "你是一个代码仓库分析助手"
     temperature: float = 0.7
     max_tokens: int = 2048
+    languange: str = "zh"
 
 
 @dataclass

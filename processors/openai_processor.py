@@ -8,6 +8,7 @@ class OpenAIProcessor(GenericProcessor):
     max_tokens: int = 1024
     api_key: Optional[str] = None
     base_url: str = "https://api.openai.com/v1"
+    languange: str = "zh"
 
     async def generate(self, prompt: str, input: str) -> str:
         client = AsyncOpenAI(api_key=self.api_key,base_url=self.base_url)

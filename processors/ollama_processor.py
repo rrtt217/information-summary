@@ -8,6 +8,7 @@ class OllamaProcessor(GenericProcessor):
     max_tokens: int = 1024
     api_key: Optional[str] = None
     base_url: str = "http://localhost:11434"
+    language: str = "zh"
 
     async def generate(self, prompt: str, input: str) -> str:
         client = AsyncClient(host=self.base_url)

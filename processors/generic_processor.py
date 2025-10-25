@@ -13,7 +13,8 @@ class GenericProcessor(ABC):
         max_tokens: int = 1024,
         api_key: Optional[str] = None,
         base_url: str = "http://localhost:11434",
-        prompts: Optional[Dict[str, str]] = None
+        prompts: Optional[Dict[str, str]] = None,
+        language: str = "zh"
     ):
         self.model_name = model_name
         self.temperature = temperature
@@ -28,15 +29,17 @@ class GenericProcessor(ABC):
             "commit-summary": "Summarize the following commit messages from {owner}/{repo}:\n\n",
             "commit-summary-zh": "总结来自{owner}/{repo}的以下提交记录的关键信息：\n\n",
             "readme-summary": "Summarize the following README content:\n\n",
-            "readme-summary-zh": "总结以下README内容的关键信息：\n\n",
+            "readme-summary-zh": "用中文总结以下README内容的关键信息：\n\n",
             "diff-analysis": "Analyze the following detailed diffs and summarize the key changes:\n\n",
-            "diff-analysis-zh": "分析以下详细的代码差异，并总结出关键的更改内容：\n\n"
+            "diff-analysis-zh": "分析以下详细的代码差异，并用中文总结出关键的更改内容：\n\n"
         }
+        self.language = language
     @abstractmethod
     async def generate(self, prompt: str, input: str) -> str:
         pass
     # 下面这些方法可能与Client交互，以完成更复杂的任务；它们包括了具体实现。
     async def translate(self, from_lang: Optional[str], to_lang: str, text: str) -> str:
+        to_lang = to_lang or self.language
         if "translate" not in self.prompts:
             raise NotImplementedError("Translate prompt is not defined.")
         if from_lang and f"translate-{from_lang}-to-{to_lang}" in self.prompts:
@@ -62,7 +65,10 @@ class GenericProcessor(ABC):
         如果diff_analysis为True，则获取更详细的diff信息进行分析。
         如果use_info为True，则将仓库的信息加入上下文。
         """
-        summary_prompt = self.prompts.get("commit-summary", "").format(owner=owner, repo=repo)
+        if self.language and f"commit-summary-{self.language}" in self.prompts:
+            summary_prompt = self.prompts.get(f"commit-summary-{self.language}", "").format(owner=owner, repo=repo)
+        else:
+            summary_prompt = self.prompts.get("commit-summary", "").format(owner=owner, repo=repo)
         if use_info:
             summary_prompt += "\nThe repository info is as follows:\n"
             repo_info = await client.get_repository_info(owner, repo)
@@ -72,7 +78,10 @@ class GenericProcessor(ABC):
             commits_data = str(await client.get_commit_messages_since(owner, repo, since, contains_full_sha=True, branch=branch)).splitlines()
             commit_sha = ""
             parent_sha = ""
-            analysis_prompt = self.prompts.get("diff-analysis", "")
+            if self.language and f"diff-analysis-{self.language}" in self.prompts:
+                analysis_prompt = self.prompts.get(f"diff-analysis-{self.language}", "")
+            else:
+                analysis_prompt = self.prompts.get("diff-analysis", "")
             for commit in commits_data:
                 commit = commit.strip()
                 if commit.startswith("Commit "):
