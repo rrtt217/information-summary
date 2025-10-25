@@ -92,7 +92,7 @@ class Repository:
                 # 如果有推送服务，推送结果
                 if push_service:
                     logger.info(f"Calling push service with result")
-                    await push_service(result)
+                    await push_service(title=f"Repository {self.owner}/{self.repo} - Job {job_name} Result", content=result)
                     logger.info(f"Push service called successfully")
                 else:
                     logger.warning(f"No push service available for job {job_name}")

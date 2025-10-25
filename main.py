@@ -21,6 +21,7 @@ config = config_loader.load_config("config.yaml")
 processors = {}
 push_services = {}
 repos = {}
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 for proc_cfg in config.processors:
     if proc_cfg.type == "ollama":
         processor = OllamaProcessor(
