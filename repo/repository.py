@@ -6,7 +6,7 @@ from apscheduler.triggers.cron import CronTrigger
 from typing import Optional, Dict, Callable
 from processors.generic_processor import GenericProcessor
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 logger = logging.getLogger(__name__)
 class Repository:
@@ -55,7 +55,7 @@ class Repository:
             
             # 创建包装函数处理任务执行
             async def job_wrapper(job_name=job_name, job_config=job_config, job_func=job_func, job_type=job_type):
-                now = datetime.now()
+                now = datetime.now(timezone.utc)
                 # 获取上次运行时间，首次运行默认为7天前
                 last_run = self.last_run_times.get(job_name, now - timedelta(days=7))
                 self.last_run_times[job_name] = now
