@@ -1,0 +1,34 @@
+processors:
+  - type: "ollama"
+    identifier: "default"
+    model: "granite4-64k:micro-h"
+    temperature: 0.0
+    max_tokens: 16384
+    base_url: "http://localhost:11434"
+    language: "zh"
+
+push_services:
+  - type: "serverchan"
+    configs:
+      sendkey: YOUR_SENDKEY_HERE
+
+repositories:
+  - type: "github"
+    identifier: "llamacpp"
+    owner: "ggml-org"
+    repo: "llama.cpp"
+    jobs:
+      job1:
+        type: "commits"
+        cron: "0 7 * * *"
+  - type: "gitlab"
+    identifier: "mesa"
+    base_url: "https://gitlab.freedesktop.org/api/v4"
+    owner: "mesa"
+    repo: "mesa"
+    jobs:
+      job1:
+        type: "commits"
+        cron: "0 8 * * *"
+
+default_processor: "default"
