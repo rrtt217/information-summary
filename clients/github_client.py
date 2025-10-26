@@ -1,6 +1,6 @@
 """GitHub API 客户端实现"""
 import aiohttp
-from typing import Any, Dict, List, Optional, Literal
+from typing import Optional, Literal
 from datetime import datetime
 from .generic_client import GenericClient, RateLimitException, auto_retry_on_rate_limit
 import base64

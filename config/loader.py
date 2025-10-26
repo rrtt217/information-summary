@@ -3,7 +3,7 @@ import json
 import os
 import re
 from pathlib import Path
-from typing import Dict, Any, Union, List
+from typing import Dict, Any
 
 import yaml
 

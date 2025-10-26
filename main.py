@@ -1,8 +1,5 @@
 #!/bin/env python3
 import asyncio
-import argparse
-from datetime import datetime, timedelta
-import time
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import logging
 from config.loader import ConfigLoader, AppConfig
@@ -16,7 +13,7 @@ from pushers.generic_pushservice import GenericPushService
 from repo.repository import Repository
 from typing import Optional, Dict, Callable, Union
 from prompt_toolkit import PromptSession
-from prompt_toolkit.completion import NestedCompleter, WordCompleter
+from prompt_toolkit.completion import NestedCompleter
 
 #__________________命令提示符____________________#
 CommandDictType = Dict[str, Union[None, Callable[..., Optional[str]], 'CommandDictType']]
@@ -174,17 +171,16 @@ command_prompt = CommandPrompt(
         "exit": lambda: "exit",
         "scheduler": {
             "list": lambda: "\n".join([str(job) for job in scheduler.get_jobs()]),
-            "shutdown":  scheduler.shutdown if scheduler.running else lambda: "Scheduler is not running",
-            "start": scheduler.start if not scheduler.running else lambda: "Scheduler is already running",
-            "pause": scheduler.pause,
-            "resume": scheduler.resume,
+            "shutdown":  (lambda *args,**kwargs : scheduler.shutdown(*args,**kwargs) or "Shuting down scheduler...") if scheduler.running else lambda: "Scheduler is not running",
+            "start": (lambda *args,**kwargs : scheduler.start(*args,**kwargs) or "Starting scheduler...") if not scheduler.running else lambda: "Scheduler is already running",
+            "pause": lambda: scheduler.pause() or "Pausing scheduler...",
+            "resume": lambda: scheduler.resume() or "Resuming scheduler...",
         }
     }
     )
     )
 try:
-    # 让用户能看到全屏程序启动前的日志
-    time.sleep(1)
     asyncio.run(command_prompt.run())
 except (KeyboardInterrupt, SystemExit, EOFError):
-    pass
+    scheduler.shutdown()
+    logging.info("Scheduler shut down. Exiting program")
