@@ -3,7 +3,7 @@ from clients.gitlab_client import GitLabClient
 from clients.generic_client import GenericClient
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
-from typing import Optional, Dict, Callable
+from typing import Optional, Dict, Callable, Any
 from processors.generic_processor import GenericProcessor
 import logging
 from datetime import datetime, timedelta, timezone
@@ -54,10 +54,10 @@ class Repository:
             job_func = job_func_map[job_type]
             
             # 创建包装函数处理任务执行
-            async def job_wrapper(job_name=job_name, job_config=job_config, job_func=job_func, job_type=job_type):
+            async def job_wrapper(job_name: str=job_name, job_config: Dict[str, Any]=job_config, job_func: Callable=job_func, job_type: str=job_type):
                 now = datetime.now(timezone.utc)
-                # 获取上次运行时间，首次运行默认为1天前
-                last_run = self.last_run_times.get(job_name, now - timedelta(days=1))
+                # 获取上次运行时间，若未配置first_time_since_days，首次运行默认为1天前
+                last_run = self.last_run_times.get(job_name, now - timedelta(days=int(job_config.get("first_time_since_days", 1))))
                 self.last_run_times[job_name] = now
                 
                 # 准备通用参数
