@@ -56,8 +56,8 @@ class Repository:
             # 创建包装函数处理任务执行
             async def job_wrapper(job_name=job_name, job_config=job_config, job_func=job_func, job_type=job_type):
                 now = datetime.now(timezone.utc)
-                # 获取上次运行时间，首次运行默认为7天前
-                last_run = self.last_run_times.get(job_name, now - timedelta(days=7))
+                # 获取上次运行时间，首次运行默认为1天前
+                last_run = self.last_run_times.get(job_name, now - timedelta(days=1))
                 self.last_run_times[job_name] = now
                 
                 # 准备通用参数
