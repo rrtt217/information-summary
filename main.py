@@ -180,7 +180,7 @@ command_prompt = CommandPrompt(
     )
     )
 try:
-    asyncio.run(command_prompt.run())
+    asyncio.get_event_loop().run_until_complete(command_prompt.run())
 except (KeyboardInterrupt, SystemExit, EOFError):
     scheduler.shutdown()
     logging.info("Scheduler shut down. Exiting program")
