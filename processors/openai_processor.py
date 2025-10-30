@@ -1,5 +1,5 @@
 from openai import AsyncOpenAI
-from processors.generic_processor import GenericProcessor
+from .generic_processor import GenericProcessor
 from typing import Optional
 
 class OpenAIProcessor(GenericProcessor):

@@ -3,7 +3,7 @@ from typing import Dict, Optional, Literal
 from datetime import datetime
 import sys
 sys.path.append("..")  # 添加上级目录到模块搜索路径
-from clients.generic_client import GenericClient
+from gitclients import GenericClient
 
 class GenericProcessor(ABC):
     def __init__(

@@ -1,6 +1,4 @@
-from clients.github_client import GitHubClient
-from clients.gitlab_client import GitLabClient
-from clients.generic_client import GenericClient
+from gitclients import GitHubClient, GitLabClient, GenericClient
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from typing import Optional, Dict, Callable, Any
