@@ -1,4 +1,5 @@
 """GitLab API 客户端实现"""
+import logging
 import aiohttp
 import base64
 from typing import Optional, Literal
@@ -59,7 +60,7 @@ class GitLabClient(GenericClient):
                                 if readme_response.status == 200:
                                     data = await readme_response.json()
                                     return base64.b64decode(data.get("content", "")).decode("utf-8")
-                                elif readme_response.status == 429:
+                                elif readme_response.status == 403 or response.status == 429:
                                     reset_timestamp = readme_response.headers.get("RateLimit-Reset")
                                     reset_time = None
                                     if reset_timestamp:
@@ -71,7 +72,7 @@ class GitLabClient(GenericClient):
                                 else:
                                     raise Exception(f"获取 README 文件失败: {readme_response.status}")
                     raise Exception("README 文件未找到")
-                elif response.status == 429:
+                elif response.status == 403 or response.status == 429:
                     reset_timestamp = response.headers.get("RateLimit-Reset")
                     reset_time = None
                     if reset_timestamp:
@@ -107,7 +108,7 @@ class GitLabClient(GenericClient):
                     repo_info += f"Last Activity At: {data.get('last_activity_at', '')}\n"
                     repo_info += f"Visibility: {data.get('visibility', '')}\n"
                     return repo_info
-                elif response.status == 429:
+                elif response.status == 403 or response.status == 429:
                     reset_timestamp = response.headers.get("RateLimit-Reset")
                     reset_time = None
                     if reset_timestamp:
@@ -157,7 +158,7 @@ class GitLabClient(GenericClient):
                         }
                         extracted_info += f"Commit {commit_info['sha']} by {commit_info['author_name']}: {commit_info['message']}\n"
                     return extracted_info
-                elif response.status == 429:
+                elif response.status == 403 or response.status == 429:
                     reset_timestamp = response.headers.get("RateLimit-Reset")
                     reset_time = None
                     if reset_timestamp:
@@ -210,7 +211,7 @@ class GitLabClient(GenericClient):
                         if contains_body:
                             extracted_info += issue['description'] + "\n"
                     return extracted_info
-                elif response.status == 429:
+                elif response.status == 403 or response.status == 429:
                     reset_timestamp = response.headers.get("RateLimit-Reset")
                     reset_time = None
                     if reset_timestamp:
@@ -263,7 +264,7 @@ class GitLabClient(GenericClient):
                         if contains_body:
                             extracted_info += mr['description'] + "\n"
                     return extracted_info
-                elif response.status == 429:
+                elif response.status == 403 or response.status == 429:
                     reset_timestamp = response.headers.get("RateLimit-Reset")
                     reset_time = None
                     if reset_timestamp:
@@ -295,7 +296,7 @@ class GitLabClient(GenericClient):
                 if response.status == 200:
                     data = await response.json()
                     return data.get("message", "")
-                elif response.status == 429:
+                elif response.status == 403 or response.status == 429:
                     reset_timestamp = response.headers.get("RateLimit-Reset")
                     reset_time = None
                     if reset_timestamp:
@@ -378,7 +379,7 @@ class GitLabClient(GenericClient):
                 if response.status == 200:
                     issue_comment_data = await response.json()
                     return "\n\n".join([f"{comment['author']['username']}: {comment['body']}" for comment in issue_comment_data])
-                elif response.status == 429:
+                elif response.status == 403 or response.status == 429:
                     reset_timestamp = response.headers.get("RateLimit-Reset")
                     reset_time = None
                     if reset_timestamp:
@@ -406,6 +407,7 @@ class GitLabClient(GenericClient):
         """
         project_id = f"{owner}/{repo}"
         url = f"{self.base_url}/projects/{project_id.replace('/', '%2F')}/merge_requests/{pr_number}/notes"
+        logging.debug(url)
         params = {"created_after": since.isoformat()}
         
         async with aiohttp.ClientSession(headers=self.headers) as session:
@@ -413,7 +415,7 @@ class GitLabClient(GenericClient):
                 if response.status == 200:
                     mr_comment_data = await response.json()
                     return "\n\n".join([f"{comment['author']['username']}: {comment['body']}" for comment in mr_comment_data])
-                elif response.status == 429:
+                elif response.status == 403 or response.status == 429:
                     reset_timestamp = response.headers.get("RateLimit-Reset")
                     reset_time = None
                     if reset_timestamp:
@@ -455,7 +457,7 @@ class GitLabClient(GenericClient):
                         diff_summary += f"File: {diff.get('new_path', '')}\n"
                         diff_summary += diff.get("diff", "") + "\n\n"
                     return diff_summary
-                elif response.status == 429:
+                elif response.status == 403 or response.status == 429:
                     reset_timestamp = response.headers.get("RateLimit-Reset")
                     reset_time = None
                     if reset_timestamp:

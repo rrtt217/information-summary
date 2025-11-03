@@ -1,4 +1,5 @@
 """GitHub API 客户端实现"""
+import logging
 import aiohttp
 from typing import Optional, Literal
 from datetime import datetime
@@ -44,7 +45,7 @@ class GitHubClient(GenericClient):
                 if response.status == 200:
                     data = await response.json()
                     return base64.b64decode(data.get("content", "")).decode("utf-8")
-                elif response.status == 429:
+                elif response.status == 403 or response.status == 429:
                     reset_timestamp = response.headers.get("X-RateLimit-Reset")
                     reset_time = None
                     if reset_timestamp:
@@ -84,7 +85,7 @@ class GitHubClient(GenericClient):
                         f"Default Branch: {data.get('default_branch')}\n"
                     )
                     return repo_info
-                elif response.status == 429:
+                elif response.status == 403 or response.status == 429:
                     reset_timestamp = response.headers.get("X-RateLimit-Reset")
                     reset_time = None
                     if reset_timestamp:
@@ -142,7 +143,7 @@ class GitHubClient(GenericClient):
                         }
                         extracted_info += f"Commit {commit_info['sha']} by {commit_info['author']['name']}: {commit_info['message']}\n"
                     return extracted_info
-                elif response.status == 429:
+                elif response.status == 403 or response.status == 429:
                     reset_timestamp = response.headers.get("X-RateLimit-Reset")
                     reset_time = None
                     if reset_timestamp:
@@ -195,7 +196,7 @@ class GitHubClient(GenericClient):
                             if contains_body:
                                 extracted_info += issue['body'] + "\n"
                     return extracted_info
-                elif response.status == 429:
+                elif response.status == 403 or response.status == 429:
                     reset_timestamp = response.headers.get("X-RateLimit-Reset")
                     reset_time = None
                     if reset_timestamp:
@@ -246,7 +247,7 @@ class GitHubClient(GenericClient):
                         if contains_body:
                             extracted_info += pr['body'] + "\n"
                     return extracted_info
-                elif response.status == 429:
+                elif response.status == 403 or response.status == 429:
                     reset_timestamp = response.headers.get("X-RateLimit-Reset")
                     reset_time = None
                     if reset_timestamp:
@@ -277,7 +278,7 @@ class GitHubClient(GenericClient):
                 if response.status == 200:
                     data = await response.json()
                     return data.get("commit", {}).get("message", "")
-                elif response.status == 429:
+                elif response.status == 403 or response.status == 429:
                     reset_timestamp = response.headers.get("X-RateLimit-Reset")
                     reset_time = None
                     if reset_timestamp:
@@ -309,7 +310,7 @@ class GitHubClient(GenericClient):
                     issue_info = f"Issue #{issue['number']} by {issue['user']['login']}: {issue['title']} (State: {issue['state']}), {f'(Labels: {labels})' if labels else ''}\n"
                     issue_info += issue['body'] + "\n"
                     return issue_info
-                elif response.status == 429:
+                elif response.status == 403 or response.status == 429:
                     reset_timestamp = response.headers.get("X-RateLimit-Reset")
                     reset_time = None
                     if reset_timestamp:
@@ -340,7 +341,7 @@ class GitHubClient(GenericClient):
                     pr_info = f"PR #{pr['number']} by {pr['user']['login']}: {pr['title']} (State: {pr['state']}) {f'(Labels: {labels})' if labels else ''}\n"
                     pr_info += pr['body'] + "\n"
                     return pr_info
-                elif response.status == 429:
+                elif response.status == 403 or response.status == 429:
                     reset_timestamp = response.headers.get("X-RateLimit-Reset")
                     reset_time = None
                     if reset_timestamp:
@@ -374,7 +375,7 @@ class GitHubClient(GenericClient):
                 if response.status == 200:
                     issue_comment_data = await response.json()
                     return "\n\n".join([f"{comment['user']['login']}: {comment['body']}" for comment in issue_comment_data])
-                elif response.status == 429:
+                elif response.status == 403 or response.status == 429:
                     reset_timestamp = response.headers.get("X-RateLimit-Reset")
                     reset_time = None
                     if reset_timestamp:
@@ -408,7 +409,7 @@ class GitHubClient(GenericClient):
                 if response.status == 200:
                     pr_comment_data = await response.json()
                     return "\n\n".join([f"{comment['user']['login']}: {comment['body']}" for comment in pr_comment_data])
-                elif response.status == 429:
+                elif response.status == 403 or response.status == 429:
                     reset_timestamp = response.headers.get("X-RateLimit-Reset")
                     reset_time = None
                     if reset_timestamp:
@@ -434,7 +435,7 @@ class GitHubClient(GenericClient):
             比较结果
         """
         url = f"{self.base_url}/repos/{owner}/{repo}/compare/{base}...{head}"
-        
+        logging.debug(url)
         headers = self.headers.copy()
         headers["Accept"] = "application/vnd.github.v3.diff"
 
@@ -442,7 +443,7 @@ class GitHubClient(GenericClient):
             async with session.get(url) as response:
                 if response.status == 200:
                     return await response.text()
-                elif response.status == 429:
+                elif response.status == 403 or response.status == 429:
                     reset_timestamp = response.headers.get("X-RateLimit-Reset")
                     reset_time = None
                     if reset_timestamp:

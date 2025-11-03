@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+import logging
 from typing import Dict, Optional, Literal
 from datetime import datetime
 import sys
@@ -84,17 +85,29 @@ class GenericProcessor(ABC):
                 analysis_prompt = self.prompts.get("diff-analysis", "")
             for commit in commits_data:
                 commit = commit.strip()
+                logging.debug(commit)
                 if commit.startswith("Commit "):
                     if len(parent_sha):
                         commit_sha = parent_sha
+                        logging.debug(f"Parent sha:{commit_sha}")
                     for i in range(7, len(commit) - 2):
                         if commit[i:i+3] == "by ":
-                            parent_sha = commit[8:i]
+                            parent_sha = commit[7:i-1].strip()
+                            logging.debug(f"Commit sha:{commit_sha}")
                             break
-                diff = await client.compare_two_commits(owner, repo, parent_sha, commit_sha) if len(parent_sha) and len(commit_sha) else ""
-                extracted_diff = await self.generate(analysis_prompt, diff) if len(diff) else ""
-                if extracted_diff:
-                    commit = extracted_diff + "\n" + commit
+                    logging.debug(f"Parent == commit: {parent_sha == commit_sha}")
+                    if len(parent_sha) and len(commit_sha) and parent_sha != commit_sha:
+                        try:
+                            diff = await client.compare_two_commits(owner, repo, parent_sha, commit_sha)
+                        except:
+                            diff = ""
+                    else:
+                        diff = ""
+                    logging.debug(f"Diff:\n{diff}")
+                    extracted_diff = await self.generate(analysis_prompt, diff) if len(diff) else ""
+                    if extracted_diff:
+                        commit = extracted_diff + "\n" + commit
+            logging.debug("\n".join(commits_data))
             return await self.generate(summary_prompt, "Detailed commit messages:"+"\n".join(commits_data))
         else:
             commit_messages = await client.get_commit_messages_since(owner, repo, since, contains_full_sha=False, branch=branch)
