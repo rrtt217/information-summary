@@ -23,16 +23,46 @@ class GenericProcessor(ABC):
         self.api_key = api_key
         self.base_url = base_url
         self.prompts = prompts or {
+            # 翻译相关提示词
             "translate": "Translate the following text from {from_lang} to {to_lang}:\n\n",
             "translate-without-from": "Translate the following text to {to_lang}:\n\n",
             "translate-en-to-zh": "将以下英文文本翻译成中文：\n\n",
+            "translate-zh-to-en": "Translate the following Chinese text to English:\n\n",
             "translate-to-zh": "将以下文本翻译成中文：\n\n",
+            "translate-to-en": "Translate the following text to English:\n\n",
+            "translate-ja-to-zh": "将以下日文文本翻译成中文：\n\n",
+            "translate-kr-to-zh": "将以下韩文文本翻译成中文：\n\n",
+            
+            # 提交记录相关提示词
             "commit-summary": "Summarize the following commit messages from {owner}/{repo}:\n\n",
             "commit-summary-zh": "总结来自{owner}/{repo}的以下提交记录的关键信息：\n\n",
+            "commit-summary-en": "Summarize the following commit messages from {owner}/{repo}:\n\n",
+            
+            # README相关提示词
             "readme-summary": "Summarize the following README content:\n\n",
             "readme-summary-zh": "用中文总结以下README内容的关键信息：\n\n",
+            
+            # 代码差异分析相关提示词
             "diff-analysis": "Analyze the following detailed diffs and summarize the key changes:\n\n",
-            "diff-analysis-zh": "分析以下详细的代码差异，并用中文总结出关键的更改内容：\n\n"
+            "diff-analysis-zh": "分析以下详细的代码差异，并用中文总结出关键的更改内容：\n\n",
+            "diff-analysis-en": "Analyze the following detailed diffs and summarize the key changes:\n\n",
+            
+            # Issue相关提示词
+            "issue-summary": "Summarize the following issues from {owner}/{repo}:\n\n",
+            "issue-summary-zh": "总结来自{owner}/{repo}的以下Issue的关键信息：\n\n",
+            "issue-summary-en": "Summarize the following issues from {owner}/{repo}:\n\n",
+            
+            # Pull Request相关提示词
+            "pr-summary": "Summarize the following pull requests from {owner}/{repo}:\n\n",
+            "pr-summary-zh": "总结来自{owner}/{repo}的以下Pull Request的关键信息：\n\n",
+            "pr-summary-en": "Summarize the following pull requests from {owner}/{repo}:\n\n",
+            
+            # 仓库信息相关提示词
+            "repo-info-summary": "Based on the following repository information, provide a comprehensive summary:\n\n",
+            "repo-info-summary-zh": "根据以下仓库信息，提供一个全面的中文总结：\n\n",
+            
+            # 综合报告相关提示词
+            "comprehensive-repo-report": "Provide a comprehensive report for repository {owner}/{repo} including recent activity, changes, and overall status:\n\n"
         }
         self.language = language
     @abstractmethod
@@ -58,7 +88,10 @@ class GenericProcessor(ABC):
         """
         readme_content = await client.get_readme(owner, repo, branch)
         readme_content = f"The README of the repository {owner}/{repo} is as follows:\n\n" + readme_content
-        summary_prompt = self.prompts.get("commit-summary", "")
+        if self.language and f"readme-summary-{self.language}" in self.prompts:
+            summary_prompt = self.prompts.get(f"readme-summary-{self.language}", "")
+        else:
+            summary_prompt = self.prompts.get("readme-summary", "")
         return await self.generate(summary_prompt, readme_content)
     async def summarize_repository_changes_since(self, client: GenericClient, owner: str, repo: str, since: datetime, branch: Optional[str] = None, diff_analysis: bool = False, use_info: bool = False) -> str:
         """
@@ -117,7 +150,10 @@ class GenericProcessor(ABC):
         总结自指定时间以来的仓库Issue更改内容。
         如果use_info为True，则将仓库的信息加入上下文。
         """
-        summary_prompt = self.prompts.get("issue-summary", "").format(owner=owner, repo=repo)
+        if self.language and f"issue-summary-{self.language}" in self.prompts:
+            summary_prompt = self.prompts.get(f"issue-summary-{self.language}", "").format(owner=owner, repo=repo)
+        else:
+            summary_prompt = self.prompts.get("issue-summary", "").format(owner=owner, repo=repo)
         if use_info:
             summary_prompt += "\nThe repository info is as follows:\n"
             repo_info = await client.get_repository_info(owner, repo)
@@ -130,7 +166,10 @@ class GenericProcessor(ABC):
         总结自指定时间以来的仓库Pull Request更改内容。
         如果use_info为True，则将仓库的信息加入上下文。
         """
-        summary_prompt = self.prompts.get("pr-summary", "").format(owner=owner, repo=repo)
+        if self.language and f"pr-summary-{self.language}" in self.prompts:
+            summary_prompt = self.prompts.get(f"pr-summary-{self.language}", "").format(owner=owner, repo=repo)
+        else:
+            summary_prompt = self.prompts.get("pr-summary", "").format(owner=owner, repo=repo)
         if use_info:
             summary_prompt += "\nThe repository info is as follows:\n"
             repo_info = await client.get_repository_info(owner, repo)
