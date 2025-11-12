@@ -1,6 +1,7 @@
 from ollama import AsyncClient
 from .generic_processor import GenericProcessor
 from typing import Optional
+import logging
 
 class OllamaProcessor(GenericProcessor):
     model_name: str = "llama2"
@@ -21,4 +22,5 @@ class OllamaProcessor(GenericProcessor):
                     "max_tokens": self.max_tokens
                 }
             )
+        logging.debug(f"Response:{response.response}")
         return response.response

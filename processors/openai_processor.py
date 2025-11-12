@@ -1,6 +1,7 @@
 from openai import AsyncOpenAI
 from .generic_processor import GenericProcessor
 from typing import Optional
+import logging
 
 class OpenAIProcessor(GenericProcessor):
     model_name: str = "gpt-3.5-turbo"
@@ -19,4 +20,5 @@ class OpenAIProcessor(GenericProcessor):
                 temperature=self.temperature,
                 max_tokens=self.max_tokens
         )
+        logging.debug(f"Response:{response.choices[0].message.content}")
         return str(response.choices[0].message.content)
