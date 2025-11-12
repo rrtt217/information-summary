@@ -134,7 +134,7 @@ class GenericProcessor(ABC):
                             diff = await client.compare_two_commits(owner, repo, parent_sha, commit_sha)
                         except Exception as e:
                             diff = ""
-                            raise e
+                            logging.error(e)
                     else:
                         diff = ""
                     logging.debug(f"Diff:\n{diff}")
