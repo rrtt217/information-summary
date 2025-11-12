@@ -134,7 +134,7 @@ class GitHubClient(GenericClient):
                         }
                         
                         # 提取作者信息（优先使用author，如果没有则使用committer）
-                        author_info = commit.get("author") or commit.get("committer") or {}
+                        author_info = commit.get("commit", {}).get("author") or commit.get("commit", {}).get("committer") or {}
                         if author_info:
                             commit_info["author"] = {
                                 "name": author_info.get("name"),
