@@ -434,7 +434,7 @@ class GitHubClient(GenericClient):
         Returns:
             比较结果(.patch格式)
         """
-        url = f"github.com/repos/{owner}/{repo}/compare/{base}...{head}.patch"
+        url = f"https://github.com/{owner}/{repo}/compare/{base}...{head}.patch"
         logging.debug(url)
         headers = self.headers.copy()
 

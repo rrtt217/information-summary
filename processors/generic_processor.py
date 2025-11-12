@@ -132,8 +132,9 @@ class GenericProcessor(ABC):
                     if len(parent_sha) and len(commit_sha) and parent_sha != commit_sha:
                         try:
                             diff = await client.compare_two_commits(owner, repo, parent_sha, commit_sha)
-                        except:
+                        except Exception as e:
                             diff = ""
+                            raise e
                     else:
                         diff = ""
                     logging.debug(f"Diff:\n{diff}")
