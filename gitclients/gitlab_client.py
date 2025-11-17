@@ -444,19 +444,14 @@ class GitLabClient(GenericClient):
         url = f"{self.base_url}/projects/{project_id.replace('/', '%2F')}/repository/compare"
         params = {
             "from": base,
-            "to": head
+            "to": head,
+            "unidiff": True
         }
         
         async with aiohttp.ClientSession(headers=self.headers) as session:
             async with session.get(url, params=params) as response:
                 if response.status == 200:
-                    compare_data = await response.json()
-                    diffs = compare_data.get("diffs", [])
-                    diff_summary = ""
-                    for diff in diffs:
-                        diff_summary += f"File: {diff.get('new_path', '')}\n"
-                        diff_summary += diff.get("diff", "") + "\n\n"
-                    return diff_summary
+                    return await response.text()
                 elif response.status == 403 or response.status == 429:
                     reset_timestamp = response.headers.get("RateLimit-Reset")
                     reset_time = None

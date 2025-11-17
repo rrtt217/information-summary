@@ -437,7 +437,7 @@ class GitHubClient(GenericClient):
         url = f"{self.base_url}/repos/{owner}/{repo}/compare/{base}...{head}"
         logging.debug(url)
         headers = self.headers.copy()
-        headers["Accept"] = "application/vnd.github.v3.diff"
+        headers["Accept"] = "application/vnd.github.diff"
 
         async with aiohttp.ClientSession(headers=self.headers) as session:
             async with session.get(url) as response:
