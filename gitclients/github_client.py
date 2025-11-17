@@ -432,11 +432,12 @@ class GitHubClient(GenericClient):
             head: 目标提交
         
         Returns:
-            比较结果(.patch格式)
+            比较结果
         """
-        url = f"https://github.com/{owner}/{repo}/compare/{base}...{head}.patch"
+        url = f"{self.base_url}/repos/{owner}/{repo}/compare/{base}...{head}"
         logging.debug(url)
         headers = self.headers.copy()
+        headers["Accept"] = "application/vnd.github.v3.diff"
 
         async with aiohttp.ClientSession(headers=self.headers) as session:
             async with session.get(url) as response:
